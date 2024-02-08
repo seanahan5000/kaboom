@@ -1,0 +1,1286 @@
+		SEI				; 2		; F000: 78
+		CLD				; 2		; F001: D8
+		LDX	#$00			; 2		; F002: A2 00
+		TXA				; 2		; F004: 8A
+B1005	STA	vsync,X		; 4		; F005: 95 00
+		TXS				; 2		; F007: 9A
+		INX				; 2		; F008: E8
+		BNE	B1005		; 2/3	; F009: D0 FA
+		JMP	J13C1		; 3		; F00B: 4C C1 F3
+
+J100E	LDX	#$12			; 2		; F00E: A2 12
+B1010	LDA	L1672,X		; 4+		; F010: BD 72 F6
+		LDY	$AE			; 3		; F013: A4 AE
+		CPY	#$20			; 2		; F015: C0 20
+		BCC	B1023		; 2/3	; F017: 90 0A
+		LDY	$AC			; 3		; F019: A4 AC
+		BNE	B1025		; 2/3	; F01B: D0 08
+		CPX	#$04			; 2		; F01D: E0 04
+		BCC	B1025		; 2/3	; F01F: 90 04
+		LDA	$82			; 3		; F021: A5 82
+B1023	EOR	$AE			; 3		; F023: 45 AE
+B1025	EOR	$83			; 3		; F025: 45 83
+		AND	$84			; 3		; F027: 25 84
+		STA	$85,X		; 4		; F029: 95 85
+		DEX				; 2		; F02B: CA
+		BPL	B1010		; 2/3	; F02C: 10 E2
+		STA	colubk 		; 3		; F02E: 85 09
+		LDX	$A0			; 3		; F030: A6 A0
+		LDA	$87,X		; 4		; F032: B5 87
+		STA	colup0 		; 3		; F034: 85 06
+		STA	colup1 		; 3		; F036: 85 07
+B1038	LDA	L0284		; 4		; F038: AD 84 02
+		BNE	B1038		; 2/3	; F03B: D0 FB
+		STA	wsync  		; 3		; F03D: 85 02
+		STA	vblank 		; 3		; F03F: 85 01
+		STA	colupf 		; 3		; F041: 85 08
+		LDA	#$35			; 2		; F043: A9 35
+		STA	ctrlpf 		; 3		; F045: 85 0A
+		STA	pf0    		; 3		; F047: 85 0D
+		LDY	#$03			; 2		; F049: A0 03
+		STY	nusiz0 		; 3		; F04B: 84 04
+		STY	nusiz1 		; 3		; F04D: 84 05
+		LDY	#$07			; 2		; F04F: A0 07
+		STY	vdelp0 		; 3		; F051: 84 25
+		STY	vdelp1 		; 3		; F053: 84 26
+B1055	STY	$87			; 3		; F055: 84 87
+		LDA	($FE),Y		; 5+		; F057: B1 FE
+		STA	$88			; 3		; F059: 85 88
+		STA	wsync  		; 3		; F05B: 85 02
+		LDA	($F4),Y		; 5+		; F05D: B1 F4
+		STA	grp0   		; 3		; F05F: 85 1B
+		LDA	($F6),Y		; 5+		; F061: B1 F6
+		STA	grp1   		; 3		; F063: 85 1C
+		LDA	($F8),Y		; 5+		; F065: B1 F8
+		STA	grp0   		; 3		; F067: 85 1B
+		LDA	($FC),Y		; 5+		; F069: B1 FC
+		TAX				; 2		; F06B: AA
+		LDA	($FA),Y		; 5+		; F06C: B1 FA
+		LDY	$88			; 3		; F06E: A4 88
+		STA	grp1   		; 3		; F070: 85 1C
+		STX	grp0   		; 3		; F072: 86 1B
+		STY	grp1   		; 3		; F074: 84 1C
+		STA	grp0   		; 3		; F076: 85 1B
+		LDY	$87			; 3		; F078: A4 87
+		DEY				; 2		; F07A: 88
+		BPL	B1055		; 2/3	; F07B: 10 D8
+		INY				; 2		; F07D: C8
+		LDA	$BB			; 3		; F07E: A5 BB
+		STA	$FA			; 3		; F080: 85 FA
+		LDA	$B2			; 3		; F082: A5 B2
+		STA	wsync  		; 3		; F084: 85 02
+		STY	vdelp0 		; 3		; F086: 84 25
+		STY	vdelp1 		; 3		; F088: 84 26
+		STY	grp0   		; 3		; F08A: 84 1B
+		STY	grp1   		; 3		; F08C: 84 1C
+		STA	refp0  		; 3		; F08E: 85 0B
+		STA	hmp0   		; 3		; F090: 85 20
+		AND	#$07			; 2		; F092: 29 07
+		TAX				; 2		; F094: AA
+B1095	DEX				; 2		; F095: CA
+		BPL	B1095		; 2/3	; F096: 10 FD
+		STA	resp0  		; 3		; F098: 85 10
+		STA	wsync  		; 3		; F09A: 85 02
+		STY	nusiz1 		; 3		; F09C: 84 05
+		STY	$F9			; 3		; F09E: 84 F9
+		STY	nusiz0 		; 3		; F0A0: 84 04
+		LDA	$99			; 3		; F0A2: A5 99
+		STA	hmp1   		; 3		; F0A4: 85 21
+		AND	#$07			; 2		; F0A6: 29 07
+		TAX				; 2		; F0A8: AA
+		LDA	$B1			; 3		; F0A9: A5 B1
+B10AB	DEX				; 2		; F0AB: CA
+		BPL	B10AB		; 2/3	; F0AC: 10 FD
+		STA	resp1  		; 3		; F0AE: 85 11
+		STA	wsync  		; 3		; F0B0: 85 02
+		STA	hmove  		; 3		; F0B2: 85 2A
+		LDX	#$1F			; 2		; F0B4: A2 1F
+		ORA	#$20			; 2		; F0B6: 09 20
+		TAY				; 2		; F0B8: A8
+		LDA	$A3			; 3		; F0B9: A5 A3
+		CMP	#$01			; 2		; F0BB: C9 01
+		ROR	$88			; 5		; F0BD: 66 88
+		BMI	B10C9		; 2/3	; F0BF: 30 08
+		LDA	$AE			; 3		; F0C1: A5 AE
+		BNE	B10EF		; 2/3	; F0C3: D0 2A
+		LDA	$A1			; 3		; F0C5: A5 A1
+		BEQ	B10EF		; 2/3	; F0C7: F0 26
+B10C9	LDA	L1652,X		; 4+		; F0C9: BD 52 F6
+		EOR	$83			; 3		; F0CC: 45 83
+		AND	$84			; 3		; F0CE: 25 84
+		STA	wsync  		; 3		; F0D0: 85 02
+		STA	colup1 		; 3		; F0D2: 85 07
+		LDA	L16D3,X		; 4+		; F0D4: BD D3 F6
+		CPX	#$16			; 2		; F0D7: E0 16
+		BNE	B10DD		; 2/3	; F0D9: D0 02
+		LDA	#$6C			; 2		; F0DB: A9 6C
+B10DD	BCS	B10E7		; 2/3	; F0DD: B0 08
+		LDA	#$6C			; 2		; F0DF: A9 6C
+		BIT	$88			; 3		; F0E1: 24 88
+		BMI	B10E7		; 2/3	; F0E3: 30 02
+		LDA	#$54			; 2		; F0E5: A9 54
+B10E7	STA	grp1   		; 3		; F0E7: 85 1C
+		DEY				; 2		; F0E9: 88
+		DEX				; 2		; F0EA: CA
+		CPX	#$15			; 2		; F0EB: E0 15
+		BCS	B10C9		; 2/3	; F0ED: B0 DA
+B10EF	LDA	L1652,X		; 4+		; F0EF: BD 52 F6
+		EOR	$83			; 3		; F0F2: 45 83
+		AND	$84			; 3		; F0F4: 25 84
+		CPX	#$03			; 2		; F0F6: E0 03
+		BNE	B1103		; 2/4	; F0F8: D0 09
+		LDA	$86			; 3		; F0FA: A5 86
+		STA	wsync  		; 3		; F0FC: 85 02
+		STA	colubk 		; 3		; F0FE: 85 09
+		JMP	J110C		; 3		; F100: 4C 0C F1
+
+B1103	STA	wsync  		; 3		; F103: 85 02
+		STA	colup1 		; 3		; F105: 85 07
+		LDA	L16D3,X		; 4+		; F107: BD D3 F6
+		STA	grp1   		; 3		; F10A: 85 1C
+J110C	LDA	L0088,Y		; 4+		; F10C: B9 88 00
+		STA	colup0 		; 3		; F10F: 85 06
+		LDA	$F9			; 3		; F111: A5 F9
+		STA	grp0   		; 3		; F113: 85 1B
+		DEY				; 2		; F115: 88
+		CPY	#$10			; 2		; F116: C0 10
+		BCS	B111E		; 2/3	; F118: B0 04
+		LDA	($FA),Y		; 5+		; F11A: B1 FA
+		STA	$F9			; 3		; F11C: 85 F9
+B111E	DEX				; 2		; F11E: CA
+		BPL	B10EF		; 2/4	; F11F: 10 CE
+		LDA	L0282		; 4		; F121: AD 82 02
+		LDX	$A0			; 3		; F124: A6 A0
+		BNE	B1129		; 2/3	; F126: D0 01
+		ASL	A			; 2		; F128: 0A
+B1129	ASL	A			; 2		; F129: 0A
+		LDA	#$00			; 2		; F12A: A9 00
+		STA	$F6			; 3		; F12C: 85 F6
+		BCS	B1132		; 2/3	; F12E: B0 02
+		LDA	#$05			; 2		; F130: A9 05
+B1132	STA	wsync  		; 3		; F132: 85 02
+		STA	nusiz1 		; 3		; F134: 85 05
+		LDA	L0088,Y		; 4+		; F136: B9 88 00
+		STA	colup0 		; 3		; F139: 85 06
+		LDA	$F9			; 3		; F13B: A5 F9
+		STA	grp0   		; 3		; F13D: 85 1B
+		LDA	#$00			; 2		; F13F: A9 00
+		STA	grp1   		; 3		; F141: 85 1C
+		STA	cxclr  		; 3		; F143: 85 2C
+		BCC	B1149		; 2/3	; F145: 90 02
+		LDA	#$0A			; 2		; F147: A9 0A
+B1149	CLC				; 2		; F149: 18
+		ADC	#$6C			; 2		; F14A: 69 6C
+		STA	$F5			; 3		; F14C: 85 F5
+		ADC	#$06			; 2		; F14E: 69 06
+		STA	$F7			; 3		; F150: 85 F7
+		LDA	#$55			; 2		; F152: A9 55
+		STA	$87			; 3		; F154: 85 87
+		DEY				; 2		; F156: 88
+		BMI	B117A		; 2/3	; F157: 30 21
+B1159	CPY	#$10			; 2		; F159: C0 10
+		BCC	B1164		; 2/3	; F15B: 90 07
+		STA	wsync  		; 3		; F15D: 85 02
+		DEC	$87			; 5		; F15F: C6 87
+		DEY				; 2		; F161: 88
+		BNE	B1159		; 2/3	; F162: D0 F5
+B1164	LDA	($FA),Y		; 5+		; F164: B1 FA
+		STA	wsync  		; 3		; F166: 85 02
+		STA	grp0   		; 3		; F168: 85 1B
+		LDA	L0088,Y		; 4+		; F16A: B9 88 00
+		STA	colup0 		; 3		; F16D: 85 06
+		DEC	$87			; 5		; F16F: C6 87
+		LDA	colupf,X		; 4		; F171: B5 08
+		BMI	B1177		; 2/3	; F173: 30 02
+		DEC	$F7			; 5		; F175: C6 F7
+B1177	DEY				; 2		; F177: 88
+		BPL	B1164		; 2/3	; F178: 10 EA
+B117A	STA	wsync  		; 3		; F17A: 85 02
+		INC	$F6			; 5		; F17C: E6 F6
+		LDY	$F6			; 3		; F17E: A4 F6
+		LDA	L00B2,Y		; 4+		; F180: B9 B2 00
+		STA	hmp0   		; 3		; F183: 85 20
+		STA	refp0  		; 3		; F185: 85 0B
+		AND	#$07			; 2		; F187: 29 07
+		TAY				; 2		; F189: A8
+B118A	DEY				; 2		; F18A: 88
+		BPL	B118A		; 2/3	; F18B: 10 FD
+		STA	resp0  		; 3		; F18D: 85 10
+		STA	wsync  		; 3		; F18F: 85 02
+		LDY	$F6			; 3		; F191: A4 F6
+		LDA	L00BB,Y		; 4+		; F193: B9 BB 00
+		STA	$FA			; 3		; F196: 85 FA
+		NOP				; 2		; F198: EA
+		LDA	$98			; 3		; F199: A5 98
+		STA	hmp1   		; 3		; F19B: 85 21
+		AND	#$07			; 2		; F19D: 29 07
+		TAY				; 2		; F19F: A8
+B11A0	DEY				; 2		; F1A0: 88
+		BPL	B11A0		; 2/3	; F1A1: 10 FD
+		STA	resp1  		; 3		; F1A3: 85 11
+		STA	wsync  		; 3		; F1A5: 85 02
+		STA	hmove  		; 3		; F1A7: 85 2A
+		LDY	#$0F			; 2		; F1A9: A0 0F
+		LDA	($FA),Y		; 5+		; F1AB: B1 FA
+		STA	grp0   		; 3		; F1AD: 85 1B
+		LDA	L0088,Y		; 4+		; F1AF: B9 88 00
+		STA	colup0 		; 3		; F1B2: 85 06
+		LDA	colupf,X		; 4		; F1B4: B5 08
+		BMI	B11BA		; 2/3	; F1B6: 30 02
+		DEC	$F7			; 5		; F1B8: C6 F7
+B11BA	DEY				; 2		; F1BA: 88
+		STA	hmclr  		; 3		; F1BB: 85 2B
+B11BD	LDA	$F6			; 3		; F1BD: A5 F6
+		CMP	$AC			; 3		; F1BF: C5 AC
+		BNE	B11C8		; 2/3	; F1C1: D0 05
+		LDA	$82			; 3		; F1C3: A5 82
+		STA	L0088,Y		; 5+		; F1C5: 99 88 00
+B11C8	LDA	($FA),Y		; 5+		; F1C8: B1 FA
+		STA	wsync  		; 3		; F1CA: 85 02
+		STA	grp0   		; 3		; F1CC: 85 1B
+		LDA	L0088,Y		; 4+		; F1CE: B9 88 00
+		STA	colup0 		; 3		; F1D1: 85 06
+B11D3	DEC	$87			; 5		; F1D3: C6 87
+		BEQ	B1209		; 2/4	; F1D5: F0 32
+		LDA	colupf,X		; 4		; F1D7: B5 08
+		BMI	B11DD		; 2/3	; F1D9: 30 02
+		DEC	$F7			; 5		; F1DB: C6 F7
+B11DD	DEY				; 2		; F1DD: 88
+		BPL	B11BD		; 2/3	; F1DE: 10 DD
+		INC	$F6			; 5		; F1E0: E6 F6
+		LDY	$F6			; 3		; F1E2: A4 F6
+		LDA	L00BB,Y		; 4+		; F1E4: B9 BB 00
+		STA	wsync  		; 3		; F1E7: 85 02
+		NOP				; 2		; F1E9: EA
+		STA	$FA			; 3		; F1EA: 85 FA
+		STY	$F8			; 3		; F1EC: 84 F8
+		LDA	L00B2,Y		; 4+		; F1EE: B9 B2 00
+		STA	hmp0   		; 3		; F1F1: 85 20
+		STA	refp0  		; 3		; F1F3: 85 0B
+		AND	#$07			; 2		; F1F5: 29 07
+		TAY				; 2		; F1F7: A8
+B11F8	DEY				; 2		; F1F8: 88
+		BPL	B11F8		; 2/3	; F1F9: 10 FD
+		STA	resp0  		; 3		; F1FB: 85 10
+		STA	wsync  		; 3		; F1FD: 85 02
+		STA	hmove  		; 3		; F1FF: 85 2A
+		LDY	#$10			; 2		; F201: A0 10
+		DEC	$87			; 5		; F203: C6 87
+		BEQ	B1210		; 2/3	; F205: F0 09
+		BNE	B11D3		; 2/4	; F207: D0 CA
+B1209	LDX	#$30			; 2		; F209: A2 30
+		DEY				; 2		; F20B: 88
+		BMI	B1254		; 2/3	; F20C: 30 46
+		BPL	B121F		; 2/3	; F20E: 10 0F
+B1210	DEY				; 2		; F210: 88
+		LDX	#$2F			; 2		; F211: A2 2F
+B1213	STX	$88			; 3		; F213: 86 88
+		LDX	$A0			; 3		; F215: A6 A0
+		LDA	colupf,X		; 4		; F217: B5 08
+		BMI	B121D		; 2/3	; F219: 30 02
+		DEC	$F7			; 5		; F21B: C6 F7
+B121D	LDX	$88			; 3		; F21D: A6 88
+B121F	LDA	$F6			; 3		; F21F: A5 F6
+		CMP	$AC			; 3		; F221: C5 AC
+		BNE	B1236		; 2/3	; F223: D0 11
+		LDA	L1684,X		; 4+		; F225: BD 84 F6
+		AND	$84			; 3		; F228: 25 84
+		STA	wsync  		; 3		; F22A: 85 02
+		STA	colup1 		; 3		; F22C: 85 07
+		LDA	L0082		; 4		; F22E: AD 82 00
+		STA	colup0 		; 3		; F231: 85 06
+		JMP	J1246		; 3		; F233: 4C 46 F2
+
+B1236	LDA	L1684,X		; 4+		; F236: BD 84 F6
+		EOR	$83			; 3		; F239: 45 83
+		AND	$84			; 3		; F23B: 25 84
+		STA	wsync  		; 3		; F23D: 85 02
+		STA	colup1 		; 3		; F23F: 85 07
+		LDA	L0088,Y		; 4+		; F241: B9 88 00
+		STA	colup0 		; 3		; F244: 85 06
+J1246	LDA	$C3,X		; 4		; F246: B5 C3
+		STA	grp1   		; 3		; F248: 85 1C
+		LDA	($FA),Y		; 5+		; F24A: B1 FA
+		STA	grp0   		; 3		; F24C: 85 1B
+		DEX				; 2		; F24E: CA
+		BEQ	B129A		; 2/3	; F24F: F0 49
+		DEY				; 2		; F251: 88
+B1252	BPL	B1213		; 2/3	; F252: 10 BF
+B1254	INC	$F6			; 5		; F254: E6 F6
+		LDY	$F6			; 3		; F256: A4 F6
+		BIT	colup1 		; 3		; F258: 24 07
+		BMI	B125E		; 2/3	; F25A: 30 02
+		STY	$F8			; 3		; F25C: 84 F8
+B125E	LDA	L00BB,Y		; 4+		; F25E: B9 BB 00
+		STA	$FA			; 3		; F261: 85 FA
+		LDA	L00B2,Y		; 4+		; F263: B9 B2 00
+		STA	hmp0   		; 3		; F266: 85 20
+		STA	refp0  		; 3		; F268: 85 0B
+		AND	#$07			; 2		; F26A: 29 07
+		STA	wsync  		; 3		; F26C: 85 02
+		TAY				; 2		; F26E: A8
+		LDA	L1684,X		; 4+		; F26F: BD 84 F6
+		EOR	$83			; 3		; F272: 45 83
+		AND	$84			; 3		; F274: 25 84
+		STA	colup1 		; 3		; F276: 85 07
+		LDA	$C3,X		; 4		; F278: B5 C3
+		STA	grp1   		; 3		; F27A: 85 1C
+B127C	DEY				; 2		; F27C: 88
+		BPL	B127C		; 2/3	; F27D: 10 FD
+		STA	resp0  		; 3		; F27F: 85 10
+		LDA	L1683,X		; 4+		; F281: BD 83 F6
+		EOR	$83			; 3		; F284: 45 83
+		STA	wsync  		; 3		; F286: 85 02
+		STA	hmove  		; 3		; F288: 85 2A
+		DEX				; 2		; F28A: CA
+		BEQ	B129C		; 2/3	; F28B: F0 0F
+		AND	$84			; 3		; F28D: 25 84
+		STA	colup1 		; 3		; F28F: 85 07
+		LDA	$C3,X		; 4		; F291: B5 C3
+		STA	grp1   		; 3		; F293: 85 1C
+		LDY	#$0F			; 2		; F295: A0 0F
+		DEX				; 2		; F297: CA
+		BNE	B1252		; 2/3	; F298: D0 B8
+B129A	STA	wsync  		; 3		; F29A: 85 02
+B129C	STX	grp0   		; 3		; F29C: 86 1B
+		STX	grp1   		; 3		; F29E: 86 1C
+		LDA	$83			; 3		; F2A0: A5 83
+		AND	$84			; 3		; F2A2: 25 84
+		STA	wsync  		; 3		; F2A4: 85 02
+		STA	L0009		; 4		; F2A6: 8D 09 00
+		EOR	#$88			; 2		; F2A9: 49 88
+		AND	$84			; 3		; F2AB: 25 84
+		STA	colup0 		; 3		; F2AD: 85 06
+		STA	colup1 		; 3		; F2AF: 85 07
+		STX	hmclr  		; 3		; F2B1: 86 2B
+		STX	refp0  		; 3		; F2B3: 86 0B
+		STX	refp1  		; 3		; F2B5: 86 0C
+		LDA	#$11			; 2		; F2B7: A9 11
+		STA	nusiz0 		; 3		; F2B9: 85 04
+		STA	nusiz1 		; 3		; F2BB: 85 05
+		STA	hmp1   		; 3		; F2BD: 85 21
+		STA	resp0  		; 3		; F2BF: 85 10
+		STA	resp1  		; 3		; F2C1: 85 11
+		LDX	#$07			; 2		; F2C3: A2 07
+B12C5	STA	wsync  		; 3		; F2C5: 85 02
+		STA	hmove  		; 3		; F2C7: 85 2A
+		LDA	L16B5,X		; 4+		; F2C9: BD B5 F6
+		STA	grp0   		; 3		; F2CC: 85 1B
+		LDA	L16BD,X		; 4+		; F2CE: BD BD F6
+		STA	grp1   		; 3		; F2D1: 85 1C
+		JSR	S1651		; 6		; F2D3: 20 51 F6
+		LDA	L16CD,X		; 4+		; F2D6: BD CD F6
+		TAY				; 2		; F2D9: A8
+		LDA	L16C5,X		; 4+		; F2DA: BD C5 F6
+		STA	grp0   		; 3		; F2DD: 85 1B
+		STY	grp1   		; 3		; F2DF: 84 1C
+		STA	hmclr  		; 3		; F2E1: 85 2B
+		DEX				; 2		; F2E3: CA
+		BPL	B12C5		; 2/3	; F2E4: 10 DF
+		LDA	#$21			; 2		; F2E6: A9 21
+		STA	L0296		; 4		; F2E8: 8D 96 02
+		LDX	L0280		; 4		; F2EB: AE 80 02
+		INX				; 2		; F2EE: E8
+		BEQ	B12F3		; 2/3	; F2EF: F0 02
+		STY	$9E			; 3		; F2F1: 84 9E
+B12F3	SEC				; 2		; F2F3: 38
+		LDA	$F7			; 3		; F2F4: A5 F7
+		SBC	#$05			; 2		; F2F6: E9 05
+		BPL	B12FB		; 2/3	; F2F8: 10 01
+		TYA				; 2		; F2FA: 98
+B12FB	SEC				; 2		; F2FB: 38
+		SBC	$9D			; 3		; F2FC: E5 9D
+		CLC				; 2		; F2FE: 18
+		BPL	B1302		; 2/3	; F2FF: 10 01
+		SEC				; 2		; F301: 38
+B1302	ROR	A			; 2		; F302: 6A
+		CMP	#$02			; 2		; F303: C9 02
+		BCC	B130D		; 2/3	; F305: 90 06
+		CMP	#$FE			; 2		; F307: C9 FE
+		BCS	B130D		; 2/3	; F309: B0 02
+		STY	$9E			; 3		; F30B: 84 9E
+B130D	CLC				; 2		; F30D: 18
+		ADC	$9D			; 3		; F30E: 65 9D
+		CMP	$F5			; 3		; F310: C5 F5
+		BCC	B1316		; 2/3	; F312: 90 02
+		LDA	$F5			; 3		; F314: A5 F5
+B1316	STA	$9D			; 3		; F316: 85 9D
+		JSR	S163D		; 6		; F318: 20 3D F6
+		STA	$98			; 3		; F31B: 85 98
+		LDX	#$0F			; 2		; F31D: A2 0F
+B131F	LDA	L17EC,X		; 4+		; F31F: BD EC F7
+		STA	$C4,X		; 4		; F322: 95 C4
+		STA	$D4,X		; 4		; F324: 95 D4
+		STA	$E4,X		; 4		; F326: 95 E4
+		LDY	$A1			; 3		; F328: A4 A1
+		BEQ	B1334		; 2/3	; F32A: F0 08
+		DEY				; 2		; F32C: 88
+		BEQ	B1336		; 2/3	; F32D: F0 07
+		DEY				; 2		; F32F: 88
+		BEQ	B1338		; 2/3	; F330: F0 06
+		BNE	B133A		; 2/3	; F332: D0 06
+B1334	STY	$E4,X		; 4		; F334: 94 E4
+B1336	STY	$D4,X		; 4		; F336: 94 D4
+B1338	STY	$C4,X		; 4		; F338: 94 C4
+B133A	DEX				; 2		; F33A: CA
+		BPL	B131F		; 2/3	; F33B: 10 E2
+		LDY	$9C			; 3		; F33D: A4 9C
+		LDX	L17E8,Y		; 4+		; F33F: BE E8 F7
+		LDA	$AF			; 3		; F342: A5 AF
+		ASL	A			; 2		; F344: 0A
+		AND	#$18			; 2		; F345: 29 18
+		TAY				; 2		; F347: A8
+		LDA	#$07			; 2		; F348: A9 07
+		STA	$F9			; 3		; F34A: 85 F9
+B134C	LDA	L1708,Y		; 4+		; F34C: B9 08 F7
+		STA	$CC,X		; 4		; F34F: 95 CC
+		INY				; 2		; F351: C8
+		INX				; 2		; F352: E8
+		DEC	$F9			; 5		; F353: C6 F9
+		BPL	B134C		; 2/3	; F355: 10 F5
+B1357	LDA	L0284		; 4		; F357: AD 84 02
+		BNE	B1357		; 2/3	; F35A: D0 FB
+		LDY	#$82			; 2		; F35C: A0 82
+		STY	wsync  		; 3		; F35E: 84 02
+		STY	vblank 		; 3		; F360: 84 01
+		STY	vsync  		; 3		; F362: 84 00
+		STY	wsync  		; 3		; F364: 84 02
+		STY	wsync  		; 3		; F366: 84 02
+		STY	wsync  		; 3		; F368: 84 02
+		STA	vsync  		; 3		; F36A: 85 00
+		INC	$81			; 5		; F36C: E6 81
+		BNE	B1377		; 2/3	; F36E: D0 07
+		INC	$9E			; 5		; F370: E6 9E
+		BNE	B1377		; 2/3	; F372: D0 03
+		SEC				; 2		; F374: 38
+		ROR	$9E			; 5		; F375: 66 9E
+B1377	LDY	#$FF			; 2		; F377: A0 FF
+		LDA	L0282		; 4		; F379: AD 82 02
+		AND	#$08			; 2		; F37C: 29 08
+		BNE	B1382		; 2/3	; F37E: D0 02
+		LDY	#$0F			; 2		; F380: A0 0F
+B1382	TYA				; 2		; F382: 98
+		LDY	#$00			; 2		; F383: A0 00
+		BIT	$9E			; 3		; F385: 24 9E
+		BPL	B138D		; 2/3	; F387: 10 04
+		AND	#$F7			; 2		; F389: 29 F7
+		LDY	$9E			; 3		; F38B: A4 9E
+B138D	STY	$83			; 3		; F38D: 84 83
+		ASL	$83			; 5		; F38F: 06 83
+		STA	$84			; 3		; F391: 85 84
+		LDA	#$30			; 2		; F393: A9 30
+		STA	wsync  		; 3		; F395: 85 02
+		STA	L0296		; 4		; F397: 8D 96 02
+		LDY	#$00			; 2		; F39A: A0 00
+		STY	$88			; 3		; F39C: 84 88
+		LDA	L0282		; 4		; F39E: AD 82 02
+		LSR	A			; 2		; F3A1: 4A
+		BCS	B13B4		; 2/3	; F3A2: B0 10
+		JSR	S1624		; 6		; F3A4: 20 24 F6
+		STX	$AD			; 3		; F3A7: 86 AD
+		ASL	$80			; 5		; F3A9: 06 80
+		SEC				; 2		; F3AB: 38
+		ROR	$80			; 5		; F3AC: 66 80
+		LDA	#$03			; 2		; F3AE: A9 03
+		STA	$A1			; 3		; F3B0: 85 A1
+		STA	$A6			; 3		; F3B2: 85 A6
+B13B4	LSR	A			; 2		; F3B4: 4A
+		BCS	B13D0		; 2/3	; F3B5: B0 19
+		LDA	$9F			; 3		; F3B7: A5 9F
+		BEQ	B13BF		; 2/3	; F3B9: F0 04
+		DEC	$9F			; 5		; F3BB: C6 9F
+		BPL	B13D2		; 2/3	; F3BD: 10 13
+B13BF	INC	$80			; 5		; F3BF: E6 80
+J13C1	JSR	S1624		; 6		; F3C1: 20 24 F6
+		LDA	$80			; 3		; F3C4: A5 80
+		AND	#$01			; 2		; F3C6: 29 01
+		STA	$80			; 3		; F3C8: 85 80
+		TAY				; 2		; F3CA: A8
+		INY				; 2		; F3CB: C8
+		STY	$A5			; 3		; F3CC: 84 A5
+		LDY	#$1E			; 2		; F3CE: A0 1E
+B13D0	STY	$9F			; 3		; F3D0: 84 9F
+B13D2	BIT	$80			; 3		; F3D2: 24 80
+		BPL	B13FA		; 2/3	; F3D4: 10 24
+		LDA	$A1			; 3		; F3D6: A5 A1
+		BNE	B13E2		; 2/3	; F3D8: D0 08
+		LDA	$81			; 3		; F3DA: A5 81
+		AND	#$7F			; 2		; F3DC: 29 7F
+		BNE	B13FA		; 2/3	; F3DE: D0 1A
+		BEQ	B142A		; 2/4	; F3E0: F0 48
+B13E2	LDA	$AE			; 3		; F3E2: A5 AE
+		BEQ	B1459		; 2/4	; F3E4: F0 73
+		CMP	#$20			; 2		; F3E6: C9 20
+		BCC	B141C		; 2/4	; F3E8: 90 32
+		BEQ	B13FD		; 2/3	; F3EA: F0 11
+B13EC	LDA	$AE			; 3		; F3EC: A5 AE
+		AND	#$0C			; 2		; F3EE: 29 0C
+		ASL	A			; 2		; F3F0: 0A
+		ASL	A			; 2		; F3F1: 0A
+		ADC	#$B8			; 2		; F3F2: 69 B8
+		LDX	$AC			; 3		; F3F4: A6 AC
+		STA	$BB,X		; 4		; F3F6: 95 BB
+		DEC	$AE			; 5		; F3F8: C6 AE
+B13FA	JMP	J159E		; 3		; F3FA: 4C 9E F5
+
+B13FD	LDX	$AC			; 3		; F3FD: A6 AC
+		LDA	#$00			; 2		; F3FF: A9 00
+		STA	$BB,X		; 4		; F401: 95 BB
+J1403	LDA	#$2B			; 2		; F403: A9 2B
+		STA	$AE			; 3		; F405: 85 AE
+		LDX	#$08			; 2		; F407: A2 08
+		LDA	$AB			; 3		; F409: A5 AB
+		BEQ	B140F		; 2/3	; F40B: F0 02
+		DEC	$AB			; 5		; F40D: C6 AB
+B140F	STX	$AC			; 3		; F40F: 86 AC
+		LDA	$BB,X		; 4		; F411: B5 BB
+		BNE	B13EC		; 2/4	; F413: D0 D7
+		DEX				; 2		; F415: CA
+		BPL	B140F		; 2/3	; F416: 10 F7
+		LDA	#$20			; 2		; F418: A9 20
+		STA	$AE			; 3		; F41A: 85 AE
+B141C	DEC	$AE			; 5		; F41C: C6 AE
+		BNE	B13FA		; 2/4	; F41E: D0 DA
+		LDA	$B0			; 3		; F420: A5 B0
+		BNE	B1426		; 2/3	; F422: D0 02
+		DEC	$A1			; 5		; F424: C6 A1
+B1426	LDA	$A6			; 3		; F426: A5 A6
+		BEQ	B1442		; 2/3	; F428: F0 18
+B142A	LDA	$80			; 3		; F42A: A5 80
+		LSR	A			; 2		; F42C: 4A
+		BCC	B1442		; 2/3	; F42D: 90 13
+		LDX	#$04			; 2		; F42F: A2 04
+B1431	LDY	$A1,X		; 4		; F431: B4 A1
+		LDA	$A6,X		; 4		; F433: B5 A6
+		STA	$A1,X		; 4		; F435: 95 A1
+		STY	$A6,X		; 4		; F437: 94 A6
+		DEX				; 2		; F439: CA
+		BPL	B1431		; 2/3	; F43A: 10 F5
+		LDA	$A0			; 3		; F43C: A5 A0
+		EOR	#$01			; 2		; F43E: 49 01
+		STA	$A0			; 3		; F440: 85 A0
+B1442	LDX	$A2			; 3		; F442: A6 A2
+		TXA				; 2		; F444: 8A
+		BEQ	B1451		; 2/3	; F445: F0 0A
+		DEX				; 2		; F447: CA
+		STX	$A2			; 3		; F448: 86 A2
+		LDA	L16F3,X		; 4+		; F44A: BD F3 F6
+		LSR	A			; 2		; F44D: 4A
+		CLC				; 2		; F44E: 18
+		ADC	#$01			; 2		; F44F: 69 01
+B1451	STA	$AB			; 3		; F451: 85 AB
+		LDX	#$FF			; 2		; F453: A2 FF
+		STX	$AD			; 3		; F455: 86 AD
+		BNE	B13FA		; 2/4	; F457: D0 A1
+B1459	BIT	$AD			; 3		; F459: 24 AD
+		BPL	B1471		; 2/3	; F45B: 10 14
+		LDA	L0280		; 4		; F45D: AD 80 02
+		LDX	$A0			; 3		; F460: A6 A0
+		BEQ	B1465		; 2/3	; F462: F0 01
+		ASL	A			; 2		; F464: 0A
+B1465	ASL	A			; 2		; F465: 0A
+		LDA	#$00			; 2		; F466: A9 00
+		BCS	B146C		; 2/3	; F468: B0 02
+		STA	$AD			; 3		; F46A: 85 AD
+B146C	STA	$B1			; 3		; F46C: 85 B1
+		JMP	J1596		; 3		; F46E: 4C 96 F5
+
+B1471	LDA	$81			; 3		; F471: A5 81
+		AND	#$0F			; 2		; F473: 29 0F
+		BNE	B1482		; 2/3	; F475: D0 0B
+		JSR	S162E		; 6		; F477: 20 2E F6
+		BCS	B1482		; 2/3	; F47A: B0 06
+		LDA	$9B			; 3		; F47C: A5 9B
+		EOR	#$FF			; 2		; F47E: 49 FF
+		STA	$9B			; 3		; F480: 85 9B
+B1482	BIT	$AD			; 3		; F482: 24 AD
+		BVS	B14B6		; 2/3	; F484: 70 30
+		LDA	$B1			; 3		; F486: A5 B1
+		CMP	#$11			; 2		; F488: C9 11
+		BCS	B14B6		; 2/3	; F48A: B0 2A
+		CMP	#$02			; 2		; F48C: C9 02
+		BCC	B14B6		; 2/3	; F48E: 90 26
+		LDA	$A2			; 3		; F490: A5 A2
+		BIT	$9B			; 3		; F492: 24 9B
+		BPL	B1499		; 2/3	; F494: 10 03
+		EOR	#$FF			; 2		; F496: 49 FF
+		CLC				; 2		; F498: 18
+B1499	ADC	$9A			; 3		; F499: 65 9A
+		CMP	#$F0			; 2		; F49B: C9 F0
+		BCC	B14A5		; 2/3	; F49D: 90 06
+		LDX	#$00			; 2		; F49F: A2 00
+		LDA	#$05			; 2		; F4A1: A9 05
+		BNE	B14AD		; 2/3	; F4A3: D0 08
+B14A5	CMP	#$76			; 2		; F4A5: C9 76
+		BCC	B14AF		; 2/3	; F4A7: 90 06
+		LDX	#$FF			; 2		; F4A9: A2 FF
+		LDA	#$76			; 2		; F4AB: A9 76
+B14AD	STX	$9B			; 3		; F4AD: 86 9B
+B14AF	STA	$9A			; 3		; F4AF: 85 9A
+		JSR	S163D		; 6		; F4B1: 20 3D F6
+		STA	$99			; 3		; F4B4: 85 99
+B14B6	BIT	colup1 		; 3		; F4B6: 24 07
+		BPL	B1512		; 2/4	; F4B8: 10 58
+		LDX	$F8			; 3		; F4BA: A6 F8
+		LDA	#$00			; 2		; F4BC: A9 00
+		STA	$BB,X		; 4		; F4BE: 95 BB
+		LDY	#$02			; 2		; F4C0: A0 02
+		CPX	#$06			; 2		; F4C2: E0 06
+		BCC	B14CA		; 2/3	; F4C4: 90 04
+		BEQ	B14C9		; 2/3	; F4C6: F0 01
+		DEY				; 2		; F4C8: 88
+B14C9	DEY				; 2		; F4C9: 88
+B14CA	LDX	$A1			; 3		; F4CA: A6 A1
+		CPX	#$02			; 2		; F4CC: E0 02
+		BEQ	B14D4		; 2/3	; F4CE: F0 04
+		BCS	B14D8		; 2/3	; F4D0: B0 06
+		LDY	#$02			; 2		; F4D2: A0 02
+B14D4	TYA				; 2		; F4D4: 98
+		BNE	B14D8		; 2/3	; F4D5: D0 01
+		INY				; 2		; F4D7: C8
+B14D8	STY	$9C			; 3		; F4D8: 84 9C
+		LDA	#$10			; 2		; F4DA: A9 10
+		STA	$AF			; 3		; F4DC: 85 AF
+		SED				; 2		; F4DE: F8
+		CLC				; 2		; F4DF: 18
+		LDA	$A2			; 3		; F4E0: A5 A2
+		ADC	#$01			; 2		; F4E2: 69 01
+		LDX	#$02			; 2		; F4E4: A2 02
+		LDY	$A4			; 3		; F4E6: A4 A4
+B14E8	ADC	$A3,X		; 4		; F4E8: 75 A3
+		STA	$A3,X		; 4		; F4EA: 95 A3
+		LDA	#$00			; 2		; F4EC: A9 00
+		DEX				; 2		; F4EE: CA
+		BPL	B14E8		; 2/3	; F4EF: 10 F7
+		CLD				; 2		; F4F1: D8
+		BCC	B14FE		; 2/3	; F4F2: 90 0A
+		STA	$A1			; 3		; F4F4: 85 A1
+		LDA	#$99			; 2		; F4F6: A9 99
+		STA	$A3			; 3		; F4F8: 85 A3
+		STA	$A4			; 3		; F4FA: 85 A4
+		STA	$A5			; 3		; F4FC: 85 A5
+B14FE	TYA				; 2		; F4FE: 98
+		EOR	$A4			; 3		; F4FF: 45 A4
+		AND	#$F0			; 2		; F501: 29 F0
+		BEQ	B1512		; 2/3	; F503: F0 0D
+		LDX	$A1			; 3		; F505: A6 A1
+		INX				; 2		; F507: E8
+		CPX	#$04			; 2		; F508: E0 04
+		BCS	B150E		; 2/3	; F50A: B0 02
+		STX	$A1			; 3		; F50C: 86 A1
+B150E	LDA	#$3F			; 2		; F50E: A9 3F
+		STA	$B0			; 3		; F510: 85 B0
+B1512	LDX	$F6			; 3		; F512: A6 F6
+		LDA	$BB,X		; 4		; F514: B5 BB
+		BEQ	B1528		; 2/3	; F516: F0 10
+		LDX	#$08			; 2		; F518: A2 08
+B151A	LDA	$BB,X		; 4		; F51A: B5 BB
+		BEQ	B1522		; 2/3	; F51C: F0 04
+		LDA	#$78			; 2		; F51E: A9 78
+		STA	$BB,X		; 4		; F520: 95 BB
+B1522	DEX				; 2		; F522: CA
+		BPL	B151A		; 2/3	; F523: 10 F5
+		JMP	J1403		; 3		; F525: 4C 03 F4
+
+B1528	LDX	#$08			; 2		; F528: A2 08
+B152A	LDA	$BB,X		; 4		; F52A: B5 BB
+		BEQ	B153F		; 2/3	; F52C: F0 11
+		DEC	$88			; 5		; F52E: C6 88
+		JSR	S162E		; 6		; F530: 20 2E F6
+		EOR	$81			; 3		; F533: 45 81
+		AND	#$03			; 2		; F535: 29 03
+		ASL	A			; 2		; F537: 0A
+		ASL	A			; 2		; F538: 0A
+		ASL	A			; 2		; F539: 0A
+		ASL	A			; 2		; F53A: 0A
+		ADC	#$78			; 2		; F53B: 69 78
+		STA	$BB,X		; 4		; F53D: 95 BB
+B153F	DEX				; 2		; F53F: CA
+		BPL	B152A		; 2/3	; F540: 10 E8
+		LDA	$A2			; 3		; F542: A5 A2
+		LSR	A			; 2		; F544: 4A
+		CLC				; 2		; F545: 18
+		ADC	#$01			; 2		; F546: 69 01
+		ADC	$B1			; 3		; F548: 65 B1
+		STA	$B1			; 3		; F54A: 85 B1
+		SEC				; 2		; F54C: 38
+		SBC	#$12			; 2		; F54D: E9 12
+		BCC	J159E		; 2/3	; F54F: 90 4D
+		STA	$B1			; 3		; F551: 85 B1
+		LDX	#$07			; 2		; F553: A2 07
+B1555	LDA	$B2,X		; 4		; F555: B5 B2
+		STA	$B3,X		; 4		; F557: 95 B3
+		LDA	$BB,X		; 4		; F559: B5 BB
+		STA	$BC,X		; 4		; F55B: 95 BC
+		DEX				; 2		; F55D: CA
+		BPL	B1555		; 2/3	; F55E: 10 F5
+		LDA	#$00			; 2		; F560: A9 00
+		STA	$BB			; 3		; F562: 85 BB
+		LDX	$A2			; 3		; F564: A6 A2
+		BIT	$AD			; 3		; F566: 24 AD
+		BVC	B1579		; 2/3	; F568: 50 0F
+		LDA	$88			; 3		; F56A: A5 88
+		ORA	$AF			; 3		; F56C: 05 AF
+		BNE	J159E		; 2/3	; F56E: D0 2E
+		ASL	$AD			; 5		; F570: 06 AD
+		CPX	#$07			; 2		; F572: E0 07
+		BCS	B1579		; 2/3	; F574: B0 03
+		INX				; 2		; F576: E8
+		STX	$A2			; 3		; F577: 86 A2
+B1579	TXA				; 2		; F579: 8A
+		LSR	A			; 2		; F57A: 4A
+		BCS	B1581		; 2/3	; F57B: B0 04
+		LDA	$BC			; 3		; F57D: A5 BC
+		BNE	J159E		; 2/3	; F57F: D0 1D
+B1581	INC	$AB			; 5		; F581: E6 AB
+		LDA	$AB			; 3		; F583: A5 AB
+		CMP	L16F3,X		; 4+		; F585: DD F3 F6
+		BCC	B1592		; 2/3	; F588: 90 08
+		LDA	#$00			; 2		; F58A: A9 00
+		STA	$AB			; 3		; F58C: 85 AB
+		LDA	#$7F			; 2		; F58E: A9 7F
+		STA	$AD			; 3		; F590: 85 AD
+B1592	LDA	$82			; 3		; F592: A5 82
+		AND	#$08			; 2		; F594: 29 08
+J1596	ORA	$99			; 3		; F596: 05 99
+		STA	$B2			; 3		; F598: 85 B2
+		LDA	#$78			; 2		; F59A: A9 78
+		STA	$BB			; 3		; F59C: 85 BB
+J159E	JSR	S162E		; 6		; F59E: 20 2E F6
+		AND	#$03			; 2		; F5A1: 29 03
+		TAX				; 2		; F5A3: AA
+		LDY	#$00			; 2		; F5A4: A0 00
+		LDA	$88			; 3		; F5A6: A5 88
+		BEQ	B15B2		; 2/3	; F5A8: F0 08
+		TXA				; 2		; F5AA: 8A
+		LSR	A			; 2		; F5AB: 4A
+		ADC	#$01			; 2		; F5AC: 69 01
+		STA	audv0  		; 3		; F5AE: 85 19
+		LDY	#$08			; 2		; F5B0: A0 08
+B15B2	LDA	$AF			; 3		; F5B2: A5 AF
+		BEQ	B15C5		; 2/3	; F5B4: F0 0F
+		LDY	#$08			; 2		; F5B6: A0 08
+		DEC	$AF			; 5		; F5B8: C6 AF
+		CMP	#$0F			; 2		; F5BA: C9 0F
+		BCC	B15C2		; 2/3	; F5BC: 90 04
+		LDY	#$0C			; 2		; F5BE: A0 0C
+		SBC	$A2			; 3		; F5C0: E5 A2
+B15C2	TAX				; 2		; F5C2: AA
+		STY	audv0  		; 3		; F5C3: 84 19
+B15C5	LDA	$AE			; 3		; F5C5: A5 AE
+		BEQ	B15D8		; 2/3	; F5C7: F0 0F
+		LDY	#$08			; 2		; F5C9: A0 08
+		LDX	#$08			; 2		; F5CB: A2 08
+		ADC	$AC			; 3		; F5CD: 65 AC
+		CMP	#$20			; 2		; F5CF: C9 20
+		BCS	B15D6		; 2/3	; F5D1: B0 03
+		LSR	A			; 2		; F5D3: 4A
+		LDX	#$1F			; 2		; F5D4: A2 1F
+B15D6	STA	audv0  		; 3		; F5D6: 85 19
+B15D8	LDA	$B0			; 3		; F5D8: A5 B0
+		BEQ	B15E8		; 2/3	; F5DA: F0 0C
+		DEC	$B0			; 5		; F5DC: C6 B0
+		TAX				; 2		; F5DE: AA
+		LSR	A			; 2		; F5DF: 4A
+		LSR	A			; 2		; F5E0: 4A
+		BCC	B15E4		; 2/3	; F5E1: 90 01
+		TAX				; 2		; F5E3: AA
+B15E4	LDY	#$0C			; 2		; F5E4: A0 0C
+		STY	audv0  		; 3		; F5E6: 84 19
+B15E8	STX	audf0  		; 3		; F5E8: 86 17
+		STY	audc0  		; 3		; F5EA: 84 15
+		LDY	#$02			; 2		; F5EC: A0 02
+B15EE	TYA				; 2		; F5EE: 98
+		ASL	A			; 2		; F5EF: 0A
+		ASL	A			; 2		; F5F0: 0A
+		TAX				; 2		; F5F1: AA
+		LDA	L00A3,Y		; 4+		; F5F2: B9 A3 00
+		AND	#$F0			; 2		; F5F5: 29 F0
+		LSR	A			; 2		; F5F7: 4A
+		ADC	#$28			; 2		; F5F8: 69 28
+		STA	$F4,X		; 4		; F5FA: 95 F4
+		LDA	L00A3,Y		; 4+		; F5FC: B9 A3 00
+		AND	#$0F			; 2		; F5FF: 29 0F
+		ASL	A			; 2		; F601: 0A
+		ASL	A			; 2		; F602: 0A
+		ASL	A			; 2		; F603: 0A
+		ADC	#$28			; 2		; F604: 69 28
+		STA	$F6,X		; 4		; F606: 95 F6
+		LDA	#$F7			; 2		; F608: A9 F7
+		STA	$F5,X		; 4		; F60A: 95 F5
+		STA	$F7,X		; 4		; F60C: 95 F7
+		DEY				; 2		; F60E: 88
+		BPL	B15EE		; 2/4	; F60F: 10 DD
+		LDX	#$00			; 2		; F611: A2 00
+B1613	LDA	$F4,X		; 4		; F613: B5 F4
+		EOR	#$28			; 2		; F615: 49 28
+		BNE	B1621		; 2/3	; F617: D0 08
+		STA	$F4,X		; 4		; F619: 95 F4
+		INX				; 2		; F61B: E8
+		INX				; 2		; F61C: E8
+		CPX	#$0A			; 2		; F61D: E0 0A
+		BCC	B1613		; 2/3	; F61F: 90 F2
+B1621	JMP	J100E		; 3		; F621: 4C 0E F0
+
+S1624	LDA	#$00			; 2		; F624: A9 00
+		LDX	#$25			; 2		; F626: A2 25
+B1628	STA	$9E,X		; 4		; F628: 95 9E
+		DEX				; 2		; F62A: CA
+		BPL	B1628		; 2/3	; F62B: 10 FB
+		RTS				; 6		; F62D: 60
+
+S162E	LSR	$82			; 5		; F62E: 46 82
+		ROL	A			; 2		; F630: 2A
+		EOR	$82			; 3		; F631: 45 82
+		LSR	A			; 2		; F633: 4A
+		LDA	$82			; 3		; F634: A5 82
+		BCS	B163C		; 2/3	; F636: B0 04
+		ORA	#$40			; 2		; F638: 09 40
+		STA	$82			; 3		; F63A: 85 82
+B163C	RTS				; 6		; F63C: 60
+
+S163D	LDY	#$FF			; 2		; F63D: A0 FF
+		SEC				; 2		; F63F: 38
+B1640	INY				; 2		; F640: C8
+		SBC	#$0F			; 2		; F641: E9 0F
+		BCS	B1640		; 2/3	; F643: B0 FB
+		STY	$F9			; 3		; F645: 84 F9
+		EOR	#$FF			; 2		; F647: 49 FF
+		ADC	#$09			; 2		; F649: 69 09
+		ASL	A			; 2		; F64B: 0A
+		ASL	A			; 2		; F64C: 0A
+		ASL	A			; 2		; F64D: 0A
+		ASL	A			; 2		; F64E: 0A
+		ORA	$F9			; 3		; F64F: 05 F9
+S1651	RTS				; 6		; F651: 60
+
+L1652	dc.b	$02					; F652: 02
+		dc.b	$02					; F653: 02
+		dc.b	$3A					; F654: 3A
+		dc.b	$3A					; F655: 3A
+		dc.b	$3A					; F656: 3A
+		dc.b	$0C					; F657: 0C
+		dc.b	$02					; F658: 02
+		dc.b	$0C					; F659: 0C
+		dc.b	$02					; F65A: 02
+		dc.b	$0C					; F65B: 0C
+		dc.b	$02					; F65C: 02
+		dc.b	$0C					; F65D: 0C
+		dc.b	$02					; F65E: 02
+		dc.b	$0C					; F65F: 0C
+		dc.b	$02					; F660: 02
+		dc.b	$0C					; F661: 0C
+		dc.b	$02					; F662: 02
+		dc.b	$0C					; F663: 0C
+		dc.b	$02					; F664: 02
+		dc.b	$38					; F665: 38
+		dc.b	$3A					; F666: 3A
+		dc.b	$3A					; F667: 3A
+		dc.b	$3A					; F668: 3A
+		dc.b	$3A					; F669: 3A
+		dc.b	$3A					; F66A: 3A
+		dc.b	$38					; F66B: 38
+		dc.b	$02					; F66C: 02
+		dc.b	$02					; F66D: 02
+		dc.b	$02					; F66E: 02
+		dc.b	$14					; F66F: 14
+		dc.b	$12					; F670: 12
+		dc.b	$10					; F671: 10
+L1672	dc.b	$06					; F672: 06
+		dc.b	$D4					; F673: D4
+		dc.b	$1A					; F674: 1A
+		dc.b	$42					; F675: 42
+		dc.b	$00					; F676: 00
+		dc.b	$02					; F677: 02
+		dc.b	$04					; F678: 04
+B1679	dc.b	$06					; F679: 06
+		dc.b	$06					; F67A: 06
+		dc.b	$04					; F67B: 04
+		dc.b	$02					; F67C: 02
+		dc.b	$00					; F67D: 00
+		dc.b	$08					; F67E: 08
+		dc.b	$08					; F67F: 08
+		dc.b	$08					; F680: 08
+		dc.b	$08					; F681: 08
+		dc.b	$4E					; F682: 4E
+L1683	dc.b	$4E					; F683: 4E
+L1684	dc.b	$4E					; F684: 4E
+		dc.b	$12					; F685: 12
+		dc.b	$12					; F686: 12
+		dc.b	$14					; F687: 14
+		dc.b	$14					; F688: 14
+		dc.b	$16					; F689: 16
+		dc.b	$16					; F68A: 16
+		dc.b	$88					; F68B: 88
+		dc.b	$16					; F68C: 16
+		dc.b	$88					; F68D: 88
+		dc.b	$88					; F68E: 88
+		dc.b	$88					; F68F: 88
+		dc.b	$88					; F690: 88
+		dc.b	$88					; F691: 88
+		dc.b	$88					; F692: 88
+		dc.b	$88					; F693: 88
+		dc.b	$88					; F694: 88
+		dc.b	$12					; F695: 12
+		dc.b	$12					; F696: 12
+B1697	dc.b	$14					; F697: 14
+		dc.b	$14					; F698: 14
+		dc.b	$16					; F699: 16
+		dc.b	$16					; F69A: 16
+		dc.b	$88					; F69B: 88
+		dc.b	$16					; F69C: 16
+		dc.b	$88					; F69D: 88
+		dc.b	$88					; F69E: 88
+		dc.b	$88					; F69F: 88
+		dc.b	$88					; F6A0: 88
+		dc.b	$88					; F6A1: 88
+		dc.b	$88					; F6A2: 88
+		dc.b	$88					; F6A3: 88
+		dc.b	$88					; F6A4: 88
+		dc.b	$12					; F6A5: 12
+		dc.b	$12					; F6A6: 12
+		dc.b	$14					; F6A7: 14
+B16A8	dc.b	$14					; F6A8: 14
+		dc.b	$16					; F6A9: 16
+		dc.b	$16					; F6AA: 16
+		dc.b	$88					; F6AB: 88
+		dc.b	$16					; F6AC: 16
+		dc.b	$88					; F6AD: 88
+		dc.b	$88					; F6AE: 88
+		dc.b	$88					; F6AF: 88
+		dc.b	$88					; F6B0: 88
+		dc.b	$88					; F6B1: 88
+		dc.b	$88					; F6B2: 88
+		dc.b	$88					; F6B3: 88
+		dc.b	$88					; F6B4: 88
+L16B5	dc.b	$00					; F6B5: 00
+		dc.b	$AD					; F6B6: AD
+		dc.b	$A9					; F6B7: A9
+		dc.b	$E9					; F6B8: E9
+		dc.b	$A9					; F6B9: A9
+		dc.b	$ED					; F6BA: ED
+		dc.b	$41					; F6BB: 41
+		dc.b	$0F					; F6BC: 0F
+L16BD	dc.b	$00					; F6BD: 00
+		dc.b	$50					; F6BE: 50
+		dc.b	$58					; F6BF: 58
+		dc.b	$5C					; F6C0: 5C
+		dc.b	$56					; F6C1: 56
+		dc.b	$53					; F6C2: 53
+		dc.b	$11					; F6C3: 11
+		dc.b	$F0					; F6C4: F0
+L16C5	dc.b	$00					; F6C5: 00
+		dc.b	$BA					; F6C6: BA
+		dc.b	$8A					; F6C7: 8A
+		dc.b	$BA					; F6C8: BA
+		dc.b	$A2					; F6C9: A2
+		dc.b	$3A					; F6CA: 3A
+		dc.b	$80					; F6CB: 80
+		dc.b	$FE					; F6CC: FE
+L16CD	dc.b	$00					; F6CD: 00
+		dc.b	$E9					; F6CE: E9
+		dc.b	$AB					; F6CF: AB
+		dc.b	$AF					; F6D0: AF
+		dc.b	$AD					; F6D1: AD
+		dc.b	$E9					; F6D2: E9
+L16D3	dc.b	$00					; F6D3: 00
+		dc.b	$00					; F6D4: 00
+		dc.b	$44					; F6D5: 44
+		dc.b	$82					; F6D6: 82
+		dc.b	$82					; F6D7: 82
+		dc.b	$BA					; F6D8: BA
+		dc.b	$D6					; F6D9: D6
+		dc.b	$BA					; F6DA: BA
+		dc.b	$D6					; F6DB: D6
+		dc.b	$BA					; F6DC: BA
+		dc.b	$D6					; F6DD: D6
+		dc.b	$BA					; F6DE: BA
+		dc.b	$FE					; F6DF: FE
+		dc.b	$FE					; F6E0: FE
+		dc.b	$FE					; F6E1: FE
+		dc.b	$FE					; F6E2: FE
+		dc.b	$FE					; F6E3: FE
+		dc.b	$7C					; F6E4: 7C
+		dc.b	$38					; F6E5: 38
+		dc.b	$38					; F6E6: 38
+		dc.b	$38					; F6E7: 38
+		dc.b	$6C					; F6E8: 6C
+		dc.b	$54					; F6E9: 54
+		dc.b	$7C					; F6EA: 7C
+		dc.b	$6C					; F6EB: 6C
+		dc.b	$EE					; F6EC: EE
+		dc.b	$FE					; F6ED: FE
+		dc.b	$D6					; F6EE: D6
+		dc.b	$7C					; F6EF: 7C
+		dc.b	$7C					; F6F0: 7C
+		dc.b	$7C					; F6F1: 7C
+		dc.b	$38					; F6F2: 38
+L16F3	dc.b	$09					; F6F3: 09
+		dc.b	$14					; F6F4: 14
+		dc.b	$1E					; F6F5: 1E
+		dc.b	$28					; F6F6: 28
+		dc.b	$32					; F6F7: 32
+		dc.b	$4B					; F6F8: 4B
+		dc.b	$64					; F6F9: 64
+		dc.b	$96					; F6FA: 96
+		dc.b	$FF					; F6FB: FF
+		dc.b	$FF					; F6FC: FF
+		dc.b	$F0					; F6FD: F0
+		dc.b	$00					; F6FE: 00
+B16FF	dc.b	$00					; F6FF: 00
+		dc.b	$00					; F700: 00
+		dc.b	$00					; F701: 00
+		dc.b	$00					; F702: 00
+		dc.b	$00					; F703: 00
+		dc.b	$00					; F704: 00
+		dc.b	$00					; F705: 00
+		dc.b	$00					; F706: 00
+		dc.b	$00					; F707: 00
+L1708	dc.b	$00					; F708: 00
+		dc.b	$00					; F709: 00
+		dc.b	$00					; F70A: 00
+		dc.b	$00					; F70B: 00
+		dc.b	$00					; F70C: 00
+		dc.b	$00					; F70D: 00
+		dc.b	$00					; F70E: 00
+		dc.b	$00					; F70F: 00
+		dc.b	$92					; F710: 92
+		dc.b	$00					; F711: 00
+		dc.b	$38					; F712: 38
+		dc.b	$10					; F713: 10
+		dc.b	$82					; F714: 82
+		dc.b	$28					; F715: 28
+		dc.b	$00					; F716: 00
+		dc.b	$00					; F717: 00
+		dc.b	$10					; F718: 10
+		dc.b	$10					; F719: 10
+		dc.b	$44					; F71A: 44
+		dc.b	$92					; F71B: 92
+		dc.b	$10					; F71C: 10
+		dc.b	$00					; F71D: 00
+B171E	dc.b	$44					; F71E: 44
+		dc.b	$00					; F71F: 00
+		dc.b	$00					; F720: 00
+		dc.b	$92					; F721: 92
+		dc.b	$10					; F722: 10
+		dc.b	$00					; F723: 00
+B1724	dc.b	$10					; F724: 10
+		dc.b	$82					; F725: 82
+		dc.b	$00					; F726: 00
+		dc.b	$00					; F727: 00
+		dc.b	$3C					; F728: 3C
+		dc.b	$66					; F729: 66
+B172A	dc.b	$66					; F72A: 66
+		dc.b	$66					; F72B: 66
+		dc.b	$66					; F72C: 66
+		dc.b	$66					; F72D: 66
+		dc.b	$66					; F72E: 66
+		dc.b	$3C					; F72F: 3C
+		dc.b	$3C					; F730: 3C
+		dc.b	$18					; F731: 18
+		dc.b	$18					; F732: 18
+		dc.b	$18					; F733: 18
+		dc.b	$18					; F734: 18
+		dc.b	$18					; F735: 18
+		dc.b	$38					; F736: 38
+		dc.b	$18					; F737: 18
+		dc.b	$7E					; F738: 7E
+		dc.b	$60					; F739: 60
+		dc.b	$60					; F73A: 60
+		dc.b	$3C					; F73B: 3C
+		dc.b	$06					; F73C: 06
+		dc.b	$06					; F73D: 06
+		dc.b	$46					; F73E: 46
+		dc.b	$3C					; F73F: 3C
+		dc.b	$3C					; F740: 3C
+		dc.b	$46					; F741: 46
+		dc.b	$06					; F742: 06
+		dc.b	$0C					; F743: 0C
+		dc.b	$0C					; F744: 0C
+		dc.b	$06					; F745: 06
+		dc.b	$46					; F746: 46
+		dc.b	$3C					; F747: 3C
+		dc.b	$0C					; F748: 0C
+		dc.b	$0C					; F749: 0C
+		dc.b	$0C					; F74A: 0C
+		dc.b	$7E					; F74B: 7E
+		dc.b	$4C					; F74C: 4C
+		dc.b	$2C					; F74D: 2C
+		dc.b	$1C					; F74E: 1C
+		dc.b	$0C					; F74F: 0C
+		dc.b	$7C					; F750: 7C
+		dc.b	$46					; F751: 46
+		dc.b	$06					; F752: 06
+		dc.b	$06					; F753: 06
+		dc.b	$7C					; F754: 7C
+		dc.b	$60					; F755: 60
+		dc.b	$60					; F756: 60
+		dc.b	$7E					; F757: 7E
+		dc.b	$3C					; F758: 3C
+		dc.b	$66					; F759: 66
+		dc.b	$66					; F75A: 66
+		dc.b	$66					; F75B: 66
+		dc.b	$7C					; F75C: 7C
+		dc.b	$60					; F75D: 60
+		dc.b	$62					; F75E: 62
+		dc.b	$3C					; F75F: 3C
+		dc.b	$18					; F760: 18
+		dc.b	$18					; F761: 18
+		dc.b	$18					; F762: 18
+		dc.b	$18					; F763: 18
+		dc.b	$0C					; F764: 0C
+		dc.b	$06					; F765: 06
+		dc.b	$42					; F766: 42
+		dc.b	$7E					; F767: 7E
+		dc.b	$3C					; F768: 3C
+		dc.b	$66					; F769: 66
+		dc.b	$66					; F76A: 66
+		dc.b	$3C					; F76B: 3C
+		dc.b	$3C					; F76C: 3C
+		dc.b	$66					; F76D: 66
+		dc.b	$66					; F76E: 66
+		dc.b	$3C					; F76F: 3C
+		dc.b	$3C					; F770: 3C
+		dc.b	$46					; F771: 46
+		dc.b	$06					; F772: 06
+		dc.b	$3E					; F773: 3E
+		dc.b	$66					; F774: 66
+		dc.b	$66					; F775: 66
+		dc.b	$66					; F776: 66
+		dc.b	$3C					; F777: 3C
+		dc.b	$00					; F778: 00
+		dc.b	$10					; F779: 10
+		dc.b	$38					; F77A: 38
+		dc.b	$38					; F77B: 38
+		dc.b	$7C					; F77C: 7C
+		dc.b	$7C					; F77D: 7C
+		dc.b	$38					; F77E: 38
+		dc.b	$38					; F77F: 38
+		dc.b	$10					; F780: 10
+		dc.b	$08					; F781: 08
+		dc.b	$08					; F782: 08
+		dc.b	$10					; F783: 10
+		dc.b	$20					; F784: 20
+		dc.b	$00					; F785: 00
+		dc.b	$00					; F786: 00
+		dc.b	$00					; F787: 00
+		dc.b	$00					; F788: 00
+		dc.b	$10					; F789: 10
+B178A	dc.b	$38					; F78A: 38
+		dc.b	$38					; F78B: 38
+		dc.b	$7C					; F78C: 7C
+		dc.b	$7C					; F78D: 7C
+		dc.b	$38					; F78E: 38
+		dc.b	$38					; F78F: 38
+		dc.b	$10					; F790: 10
+		dc.b	$08					; F791: 08
+		dc.b	$08					; F792: 08
+		dc.b	$10					; F793: 10
+		dc.b	$20					; F794: 20
+		dc.b	$20					; F795: 20
+		dc.b	$00					; F796: 00
+		dc.b	$00					; F797: 00
+		dc.b	$00					; F798: 00
+		dc.b	$10					; F799: 10
+B179A	dc.b	$38					; F79A: 38
+		dc.b	$38					; F79B: 38
+		dc.b	$7C					; F79C: 7C
+		dc.b	$7C					; F79D: 7C
+		dc.b	$38					; F79E: 38
+		dc.b	$38					; F79F: 38
+		dc.b	$10					; F7A0: 10
+		dc.b	$08					; F7A1: 08
+		dc.b	$08					; F7A2: 08
+		dc.b	$10					; F7A3: 10
+		dc.b	$20					; F7A4: 20
+B17A5	dc.b	$20					; F7A5: 20
+		dc.b	$30					; F7A6: 30
+		dc.b	$10					; F7A7: 10
+		dc.b	$00					; F7A8: 00
+		dc.b	$10					; F7A9: 10
+B17AA	dc.b	$38					; F7AA: 38
+		dc.b	$38					; F7AB: 38
+		dc.b	$7C					; F7AC: 7C
+		dc.b	$7C					; F7AD: 7C
+		dc.b	$38					; F7AE: 38
+		dc.b	$38					; F7AF: 38
+		dc.b	$10					; F7B0: 10
+		dc.b	$08					; F7B1: 08
+		dc.b	$08					; F7B2: 08
+		dc.b	$10					; F7B3: 10
+		dc.b	$20					; F7B4: 20
+B17B5	dc.b	$20					; F7B5: 20
+		dc.b	$60					; F7B6: 60
+		dc.b	$20					; F7B7: 20
+		dc.b	$00					; F7B8: 00
+		dc.b	$14					; F7B9: 14
+B17BA	dc.b	$91					; F7BA: 91
+		dc.b	$5A					; F7BB: 5A
+		dc.b	$7E					; F7BC: 7E
+		dc.b	$3C					; F7BD: 3C
+		dc.b	$1D					; F7BE: 1D
+		dc.b	$B8					; F7BF: B8
+		dc.b	$3C					; F7C0: 3C
+		dc.b	$7E					; F7C1: 7E
+		dc.b	$59					; F7C2: 59
+B17C3	dc.b	$9C					; F7C3: 9C
+		dc.b	$14					; F7C4: 14
+B17C5	dc.b	$12					; F7C5: 12
+		dc.b	$A0					; F7C6: A0
+		dc.b	$04					; F7C7: 04
+		dc.b	$00					; F7C8: 00
+		dc.b	$00					; F7C9: 00
+		dc.b	$52					; F7CA: 52
+		dc.b	$18					; F7CB: 18
+		dc.b	$3C					; F7CC: 3C
+		dc.b	$3C					; F7CD: 3C
+		dc.b	$1C					; F7CE: 1C
+		dc.b	$38					; F7CF: 38
+		dc.b	$7C					; F7D0: 7C
+		dc.b	$7E					; F7D1: 7E
+		dc.b	$58					; F7D2: 58
+		dc.b	$1C					; F7D3: 1C
+		dc.b	$54					; F7D4: 54
+B17D5	dc.b	$00					; F7D5: 00
+		dc.b	$02					; F7D6: 02
+		dc.b	$00					; F7D7: 00
+		dc.b	$00					; F7D8: 00
+		dc.b	$00					; F7D9: 00
+		dc.b	$00					; F7DA: 00
+		dc.b	$00					; F7DB: 00
+		dc.b	$00					; F7DC: 00
+		dc.b	$18					; F7DD: 18
+		dc.b	$3C					; F7DE: 3C
+		dc.b	$3C					; F7DF: 3C
+		dc.b	$18					; F7E0: 18
+		dc.b	$3C					; F7E1: 3C
+		dc.b	$3C					; F7E2: 3C
+		dc.b	$18					; F7E3: 18
+		dc.b	$00					; F7E4: 00
+		dc.b	$00					; F7E5: 00
+		dc.b	$00					; F7E6: 00
+		dc.b	$00					; F7E7: 00
+L17E8	dc.b	$00					; F7E8: 00
+		dc.b	$10					; F7E9: 10
+		dc.b	$20					; F7EA: 20
+		dc.b	$30					; F7EB: 30
+L17EC	dc.b	$FE					; F7EC: FE
+		dc.b	$AA					; F7ED: AA
+		dc.b	$AA					; F7EE: AA
+		dc.b	$AA					; F7EF: AA
+		dc.b	$AA					; F7F0: AA
+		dc.b	$AA					; F7F1: AA
+		dc.b	$78					; F7F2: 78
+		dc.b	$7C					; F7F3: 7C
+		dc.b	$00					; F7F4: 00
+		dc.b	$00					; F7F5: 00
+		dc.b	$00					; F7F6: 00
+		dc.b	$00					; F7F7: 00
+		dc.b	$00					; F7F8: 00
+		dc.b	$00					; F7F9: 00
+		dc.b	$00					; F7FA: 00
+		dc.b	$00					; F7FB: 00
+		dc.b	$00					; F7FC: 00
+		dc.b	$F0					; F7FD: F0
+		dc.b	$00					; F7FE: 00
+		dc.b	$00					; F7FF: 00
