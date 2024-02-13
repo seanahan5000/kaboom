@@ -1,0 +1,33 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "name": "kaboom/kaboom.dsk",
+      "uri": "dsk:/?file:///Users/sean/dev/kaboom/kaboom.dsk"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/obj": true,
+      ".gitignore": true
+    },
+    "rpw65.syntax": "ca65",
+    "rpw65.case.lowerCaseCompletions": true
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build Kaboom!",
+        "type": "shell",
+        "command": "./build.sh",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      }
+    ]
+  }
+}
