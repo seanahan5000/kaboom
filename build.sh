@@ -7,7 +7,7 @@ fi
 
 cd "src"
 ca65 kaboom.s -l../obj/kaboom.lst -o../obj/kaboom.o
-ld65 --obj ../obj/kaboom.o -C apple2-asm.cfg --start-addr $6000 -o../obj/kaboom.bin
+ld65 --obj ../obj/kaboom.o -C apple2-asm.cfg -o../obj/kaboom.bin
 cd ".."
 
 #---------------------------------------

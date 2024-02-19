@@ -31,15 +31,16 @@ set page = * / 256
 
 ; 1023000 cycles / 60fps = 17050 cycles/frame
 
-PREAD           =   $FB1E
-
 ;  40  (80/2) top lines
 ; 142 (284/2) center lines
 ;  10  (20/2) bottom lines
 
-topHeight       =   40                  ; ***  41
-centerHeight    =   142                 ; *** 137
-bottomHeight    =   10                  ; ***  14
+topHeight       =   40
+centerHeight    =   142
+bottomHeight    =   10
+
+bombsTop        =   topHeight
+bombsBottom     =   bombsTop+centerHeight
 
 bomberMinX      =   5
 bomberMaxX      =   125                 ; inclusive
@@ -49,8 +50,9 @@ bucketsMaxX     =   121                 ; inclusive
 
 bucketByteWidth =   6
 
-offset          :=  $00
-linenum         :=  $01
+temp            :=  $00
+offset          :=  $01
+linenum         :=  $02
 
 vblank_count    :=  $10
 game_wave       :=  $11
@@ -81,6 +83,8 @@ secondary       :=  $C055
 hires           :=  $C057
 pbutton0        :=  $C061
 
+                .include "hires.s"
+
                 .org $6000
 
 kaboom
@@ -108,8 +112,11 @@ kaboom
                 sta hires
                 sta graphics
 
+                jsr init_bombs          ;***
+
 game_loop
                 jsr draw_bombs
+                jsr update_bombs        ;*** move later
 
                 ; randomly change bomber's direction
                 lda vblank_count
@@ -150,10 +157,8 @@ bomber_right    adc bomber_x
 @1              sta bomber_x
                 jsr move_bomber_right
 
-buckets
-; TODO: think about making PREAD time consistent (don't use ROM?)
-                ldx #0
-                jsr PREAD               ; read paddle 0 value
+buckets         ldx #0
+                jsr read_paddle
                 tya
                 sec
                 sbc buckets_x
@@ -189,29 +194,63 @@ buckets_left    sec
 ;   A: random_seed value
 ;   C: bottom random_seed bit
 ;
-random          LSR random_seed
-                ROL A
-                EOR random_seed
-                LSR A
-                LDA random_seed
-                BCS @1
-                ORA #$40
-                STA random_seed
-@1              RTS
+random          lsr random_seed
+                rol a
+                eor random_seed
+                lsr a
+                lda random_seed
+                bcs @1
+                ora #$40
+                sta random_seed
+@1              rts
 
+;
+; Modified version of Apple II monitor ROM code
+;
+; On entry:
+;   X: paddle to read (0-1)
+;
+; On exit:
+;   Y: paddle value (0-255)
+;
+; 2834 cycles maximum
+;
+; TODO: think about making this time consistent
+; TODO: maybe just select a 140 count range within 0-255
+;
+read_paddle     lda $c070               ; trigger paddles
+                ldy #$00                ; init count
+                nop                     ; compensate for 1st count
+                nop
+@1              lda $c064,x             ; 4  count Y-reg every
+                bpl @4                  ; 2    12 usec [actually 11]
+                iny                     ; 2
+                bne @1                  ; 3  exit at 255 max
+                dey
+                rts
+;
+; pad cycle count so read always takes about 2850 cycles
+;
+@4              sty temp                ; 3
+@3              lda $c064,x             ; 4
+                nop                     ; 2 bpl not taken
+                iny                     ; 2
+                bne @3                  ; 3/2
+@5              ldy temp                ; 3
+                rts
 
 ; not actually used
-clear1          ldx #0
-                txa
-                ldy #$20
-:               sty :+ + 2
-:               sta $2000,x             ; modified
-                inx
-                bne :-
-                iny
-                cpy #$40
-                bne :--
-                rts
+; clear1          ldx #0
+;                 txa
+;                 ldy #$20
+; :               sty :+ + 2
+; :               sta $2000,x             ; modified
+;                 inx
+;                 bne :-
+;                 iny
+;                 cpy #$40
+;                 bne :--
+;                 rts
 
 init_screen
 ;

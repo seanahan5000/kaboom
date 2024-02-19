@@ -18,8 +18,8 @@ move_buckets_left
                 cmp prev_start_col
                 bcc @1
                 sta prev_start_col
-                cmp prev_end_col        ;***
-                beq @2                  ;*** force erase instead
+                ; cmp prev_end_col        ;***
+                ; beq @2                  ;*** force erase instead
 @1              jsr erase_bucket_cols
 @2                                      ;***
                 lda hold_col
@@ -37,8 +37,8 @@ move_buckets_right
                 cpy prev_end_col
                 bcs @1
                 sty prev_end_col
-                cpy prev_start_col      ;***
-                beq @2                  ;*** force erase instead
+                ; cpy prev_start_col      ;***
+                ; beq @2                  ;*** force erase instead
 @1              jsr erase_bucket_cols
 @2                                      ;***
                 ldy hold_col
@@ -144,59 +144,61 @@ draw_buckets_hi .byte 0
                 .byte >draw_buckets2_6
                 .byte >draw_buckets3_6
 
-splash0_line0   =   $2050               ;128
-splash0_line1   =   $2450
-splash0_line2   =   $2850
-splash0_line3   =   $2C50
-splash0_line4   =   $3050
-splash0_line5   =   $3450
-splash0_line6   =   $3850
-splash0_line7   =   $3C50
+; *** maybe slide back up by 1 line?
 
-bucket0_line0   =   $20D0               ;136
-bucket0_line1   =   $24D0
-bucket0_line2   =   $28D0
-bucket0_line3   =   $2CD0
-bucket0_line4   =   $30D0
-bucket0_line5   =   $34D0
-bucket0_line6   =   $38D0
-bucket0_line7   =   $3CD0
+splash0_line0   =   hiresLine133
+splash0_line1   =   hiresLine134
+splash0_line2   =   hiresLine135
+splash0_line3   =   hiresLine136
+splash0_line4   =   hiresLine137
+splash0_line5   =   hiresLine138
+splash0_line6   =   hiresLine139
+splash0_line7   =   hiresLine140
 
-splash1_line0   =   $2150               ;144
-splash1_line1   =   $2550
-splash1_line2   =   $2950
-splash1_line3   =   $2D50
-splash1_line4   =   $3150
-splash1_line5   =   $3550
-splash1_line6   =   $3950
-splash1_line7   =   $3D50
+bucket0_line0   =   hiresLine141
+bucket0_line1   =   hiresLine142
+bucket0_line2   =   hiresLine143
+bucket0_line3   =   hiresLine144
+bucket0_line4   =   hiresLine145
+bucket0_line5   =   hiresLine146
+bucket0_line6   =   hiresLine147
+bucket0_line7   =   hiresLine148
 
-bucket1_line0   =   $21D0               ;152
-bucket1_line1   =   $25D0
-bucket1_line2   =   $29D0
-bucket1_line3   =   $2DD0
-bucket1_line4   =   $31D0
-bucket1_line5   =   $35D0
-bucket1_line6   =   $39D0
-bucket1_line7   =   $3DD0
+splash1_line0   =   hiresLine149
+splash1_line1   =   hiresLine150
+splash1_line2   =   hiresLine151
+splash1_line3   =   hiresLine152
+splash1_line4   =   hiresLine153
+splash1_line5   =   hiresLine154
+splash1_line6   =   hiresLine155
+splash1_line7   =   hiresLine156
 
-splash2_line0   =   $2250               ;160
-splash2_line1   =   $2650
-splash2_line2   =   $2A50
-splash2_line3   =   $2E50
-splash2_line4   =   $3250
-splash2_line5   =   $3650
-splash2_line6   =   $3A50
-splash2_line7   =   $3E50
+bucket1_line0   =   hiresLine157
+bucket1_line1   =   hiresLine158
+bucket1_line2   =   hiresLine159
+bucket1_line3   =   hiresLine160
+bucket1_line4   =   hiresLine161
+bucket1_line5   =   hiresLine162
+bucket1_line6   =   hiresLine163
+bucket1_line7   =   hiresLine164
 
-bucket2_line0   =   $22D0               ;168
-bucket2_line1   =   $26D0
-bucket2_line2   =   $2AD0
-bucket2_line3   =   $2ED0
-bucket2_line4   =   $32D0
-bucket2_line5   =   $36D0
-bucket2_line6   =   $3AD0
-bucket2_line7   =   $3ED0
+splash2_line0   =   hiresLine165
+splash2_line1   =   hiresLine166
+splash2_line2   =   hiresLine167
+splash2_line3   =   hiresLine168
+splash2_line4   =   hiresLine169
+splash2_line5   =   hiresLine170
+splash2_line6   =   hiresLine171
+splash2_line7   =   hiresLine172
+
+bucket2_line0   =   hiresLine173
+bucket2_line1   =   hiresLine174
+bucket2_line2   =   hiresLine175
+bucket2_line3   =   hiresLine176
+bucket2_line4   =   hiresLine177
+bucket2_line5   =   hiresLine178
+bucket2_line6   =   hiresLine179
+bucket2_line7   =   hiresLine180
 
 .macro buckets3 bits
                 sta @mod+1

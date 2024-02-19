@@ -10,6 +10,9 @@
 ; DX of 1 to 8 (of 160)
 ;
 
+; TODO:reduce erase overdraw of higher waves
+;   in order to get some cycles back for earlier waves
+
 ; TODO: figure out how to consume cycles for
 ;   columns not erased on left/right edges
 
@@ -39,6 +42,7 @@ move_bomber_left
 @3              rts
 
 ; 2012 cycles, with 3 erase columns
+; TODO: reduce erase columns for earlier waves to get cycles back
 
 move_bomber_right
                 jsr get_bomber_x
@@ -103,36 +107,36 @@ draw_bombers_hi .byte >draw_bomber_0
                 .byte >draw_bomber_5
                 .byte >draw_bomber_6
 
-bomber_line0        :=  $3880           ;14
-bomber_line1        :=  $3C80
-bomber_line2        :=  $2100           ;16
-bomber_line3        :=  $2500
-bomber_line4        :=  $2900
-bomber_line5        :=  $2D00
-bomber_line6        :=  $3100
-bomber_line7        :=  $3500
-bomber_line8        :=  $3900
-bomber_line9        :=  $3D00
-bomber_line10       :=  $2180           ;24
-bomber_line11       :=  $2580
-bomber_line12       :=  $2980
-bomber_line13       :=  $2D80
-bomber_line14       :=  $3180
-bomber_line15       :=  $3580
-bomber_line16       :=  $3980
-bomber_line17       :=  $3D80
-bomber_line18       :=  $2200           ;32
-bomber_line19       :=  $2600
-bomber_line20       :=  $2A00
-bomber_line21       :=  $2E00
-bomber_line22       :=  $3200
-bomber_line23       :=  $3600
-bomber_line24       :=  $3A00
-bomber_line25       :=  $3E00
-bomber_line26       :=  $2280           ;40
-bomber_line27       :=  $2680
-bomber_line28       :=  $2A80
-bomber_line29       :=  $2E80
+bomberLine0     :=  hiresLine13
+bomberLine1     :=  hiresLine14
+bomberLine2     :=  hiresLine15
+bomberLine3     :=  hiresLine16
+bomberLine4     :=  hiresLine17
+bomberLine5     :=  hiresLine18
+bomberLine6     :=  hiresLine19
+bomberLine7     :=  hiresLine20
+bomberLine8     :=  hiresLine21
+bomberLine9     :=  hiresLine22
+bomberLine10    :=  hiresLine23
+bomberLine11    :=  hiresLine24
+bomberLine12    :=  hiresLine25
+bomberLine13    :=  hiresLine26
+bomberLine14    :=  hiresLine27
+bomberLine15    :=  hiresLine28
+bomberLine16    :=  hiresLine29
+bomberLine17    :=  hiresLine30
+bomberLine18    :=  hiresLine31
+bomberLine19    :=  hiresLine32
+bomberLine20    :=  hiresLine33
+bomberLine21    :=  hiresLine34
+bomberLine22    :=  hiresLine35
+bomberLine23    :=  hiresLine36
+bomberLine24    :=  hiresLine37
+bomberLine25    :=  hiresLine38
+bomberLine26    :=  hiresLine39
+bomberLine27    :=  hiresLine40
+bomberLine28    :=  hiresLine41
+bomberLine29    :=  hiresLine42
 
 ; TODO (RPW65): parse macro args and
 ;   ignore them in the macro body
@@ -140,94 +144,94 @@ bomber_line29       :=  $2E80
                 sta @mod+1
                 ldx #0                  ; data offset
 @1              lda bits,x
-                sta bomber_line0,y
+                sta bomberLine0,y
                 inx
                 lda bits,x
-                sta bomber_line1,y
+                sta bomberLine1,y
                 inx
                 lda bits,x
-                sta bomber_line2,y
+                sta bomberLine2,y
                 inx
                 lda bits,x
-                sta bomber_line3,y
+                sta bomberLine3,y
                 inx
                 lda bits,x
-                sta bomber_line4,y
+                sta bomberLine4,y
                 inx
                 lda bits,x
-                sta bomber_line5,y
+                sta bomberLine5,y
                 inx
                 lda bits,x
-                sta bomber_line6,y
+                sta bomberLine6,y
                 inx
                 lda bits,x
-                sta bomber_line7,y
+                sta bomberLine7,y
                 inx
                 lda bits,x
-                sta bomber_line8,y
+                sta bomberLine8,y
                 inx
                 lda bits,x
-                sta bomber_line9,y
+                sta bomberLine9,y
                 inx
                 lda bits,x
-                sta bomber_line10,y
+                sta bomberLine10,y
                 inx
                 lda bits,x
-                sta bomber_line11,y
+                sta bomberLine11,y
                 inx
                 lda bits,x
-                sta bomber_line12,y
+                sta bomberLine12,y
                 inx
                 lda bits,x
-                sta bomber_line13,y
+                sta bomberLine13,y
                 inx
                 lda bits,x
-                sta bomber_line14,y
+                sta bomberLine14,y
                 inx
                 lda bits,x
-                sta bomber_line15,y
+                sta bomberLine15,y
                 inx
                 lda bits,x
-                sta bomber_line16,y
+                sta bomberLine16,y
                 inx
                 lda bits,x
-                sta bomber_line17,y
+                sta bomberLine17,y
                 inx
                 lda bits,x
-                sta bomber_line18,y
+                sta bomberLine18,y
                 inx
                 lda bits,x
-                sta bomber_line19,y
+                sta bomberLine19,y
                 inx
                 lda bits,x
-                sta bomber_line20,y
+                sta bomberLine20,y
                 inx
                 lda bits,x
-                sta bomber_line21,y
+                sta bomberLine21,y
                 inx
                 lda bits,x
-                sta bomber_line22,y
+                sta bomberLine22,y
                 inx
                 lda bits,x
-                sta bomber_line23,y
+                sta bomberLine23,y
                 inx
                 lda bits,x
-                sta bomber_line24,y
+                sta bomberLine24,y
                 inx
                 lda bits,x
-                sta bomber_line25,y
+                sta bomberLine25,y
                 inx
                 lda bits,x
-                sta bomber_line26,y
+                sta bomberLine26,y
                 inx
                 lda bits,x
-                sta bomber_line27,y
+                sta bomberLine27,y
                 inx
                 lda bits,x
-                sta bomber_line28,y
+                sta bomberLine28,y
                 inx
                 lda bits,x
-                sta bomber_line29,y
+                sta bomberLine29,y
                 inx
                 iny
 @mod            cpy #$ff
@@ -260,37 +264,37 @@ erase_bomber_cols
                 cpy #0
                 beq @3
 @2              lda #$7f
-@3              sta bomber_line0,y
-                sta bomber_line1,y
-                sta bomber_line2,y
-                sta bomber_line3,y
-                sta bomber_line4,y
-                sta bomber_line5,y
-                sta bomber_line6,y
-                sta bomber_line7,y
-                sta bomber_line8,y
-                sta bomber_line9,y
-                sta bomber_line10,y
-                sta bomber_line11,y
-                sta bomber_line12,y
-                sta bomber_line13,y
-                sta bomber_line14,y
-                sta bomber_line15,y
-                sta bomber_line16,y
-                sta bomber_line17,y
-                sta bomber_line18,y
-                sta bomber_line19,y
-                sta bomber_line20,y
-                sta bomber_line21,y
-                sta bomber_line22,y
-                sta bomber_line23,y
-                sta bomber_line24,y
-                sta bomber_line25,y
-                sta bomber_line26,y
+@3              sta bomberLine0,y
+                sta bomberLine1,y
+                sta bomberLine2,y
+                sta bomberLine3,y
+                sta bomberLine4,y
+                sta bomberLine5,y
+                sta bomberLine6,y
+                sta bomberLine7,y
+                sta bomberLine8,y
+                sta bomberLine9,y
+                sta bomberLine10,y
+                sta bomberLine11,y
+                sta bomberLine12,y
+                sta bomberLine13,y
+                sta bomberLine14,y
+                sta bomberLine15,y
+                sta bomberLine16,y
+                sta bomberLine17,y
+                sta bomberLine18,y
+                sta bomberLine19,y
+                sta bomberLine20,y
+                sta bomberLine21,y
+                sta bomberLine22,y
+                sta bomberLine23,y
+                sta bomberLine24,y
+                sta bomberLine25,y
+                sta bomberLine26,y
 @mod            lda #$ff
-                sta bomber_line27,y
-                sta bomber_line28,y
-                sta bomber_line29,y
+                sta bomberLine27,y
+                sta bomberLine28,y
+                sta bomberLine29,y
                 eor #$7f
                 sta @mod+1
                 iny
