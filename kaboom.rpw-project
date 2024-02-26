@@ -1,5 +1,7 @@
 {
-  "syntax": "ca65",
+  "settings": {
+    "syntax": "ca65"
+  },
   "srcDir": "src",
   "modules": [
     { "src": "kaboom.s" }

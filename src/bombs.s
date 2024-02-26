@@ -1,29 +1,16 @@
 
-; *** move these ***
-bomb_phase      =   $90
-bomb_dy         =   $91
-bomb_index      =   $92                 ;*** temp counter
-start_line      =   $93
-end_line        =   $94
-temp_ptr        =   $95
-temp_ptr_h      =   $96
-
-; *** 18 (16+2) lines between bombs ***
+; *** 18 (15+3) lines between bombs ***
 
 bomb_columns    .byte 2,4,6,8,10,12,14,16
-bomb_frames     .byte 4,4,4,4, 0, 1, 2, 3
+bomb_frames     .byte 1,0,0,0, 0, 0, 0, 0
 
 bomb_dy_offset  .byte 0,6,4,2,0
 
-init_bombs      lda #0
-                sta bomb_phase
-                lda #2                  ;***4
-                sta bomb_dy
-                jsr write_unrolls
+init_bombs      jsr write_unrolls
                 ; ***
                 rts
 
-; *** total number of cycles varies about how much
+; *** total number of cycles varies with how much
 ;   *** bottom block is clipped
 draw_bombs
                 lda #18*7
@@ -33,15 +20,40 @@ draw_bombs
                 lda #centerHeight
                 sta end_line
 
+;*** hack
+                lda start_line
+                cmp end_line
+                bcc @0
+                lda #centerHeight
+                sta start_line
+@0
+;*** hack
+
                 ldx #7
 @1              stx bomb_index
 
+;*** hack
+                lda start_line
+                cmp end_line
+                bcs @3
+;*** hack
+
+                ; randomize bomb frame
+                ldy bomb_frames,x
+                beq @2
+                jsr random
+                eor vblank_count
+                and #$03
+                tay
+                iny
+                tya
+                sta bomb_frames,x
+@2
                 ; TODO: drawing bottom to top won't be needed
                 ;   for DY of 1-3, if not always padding to 4 lines
                 ; TODO: don't always draw 4 lines of DY in order to
                 ;   get cycles back for earlier waves
 
-                ldy bomb_frames,x
                 lda bomb_offsets_l,y
                 ; *** use wave directly?
                 ldy bomb_dy
@@ -55,7 +67,7 @@ draw_bombs
                 ; jsr draw_bomb_r
                 jsr blit_bomb_l
 
-                lda start_line
+@3              lda start_line
                 sta end_line
                 sec
                 sbc #18
@@ -94,68 +106,17 @@ update_bombs
                 tax
                 lda div7,x
                 and #$FE
-                ; lda #2
-                sta bomb_columns+0
-                lda #4
+                bne @3
+                lda #2                  ;*** fix with bomber instead
+@3              sta bomb_columns+0
+                ; *** also clamp to right side? ***
+
+                lda #1
                 sta bomb_frames+0
 
                 pla                     ;***
 @2              sta bomb_phase
-
-                ; *** adjust frame indexes
-
                 rts
-
-;
-; On entry:
-;   X: data offset
-;   Y: column
-;
-; draw_bomb_l     sty @mod1+1
-;                 lda end_line
-;                 sta @mod2+1
-;                 ldy start_line
-; @1              sty linenum
-;                 lda hires_table_lo,y
-;                 sta screenl
-;                 lda hires_table_hi,y
-;                 sta screenh
-; @mod1           ldy #$ff
-;                 lda bomb_data_l,x
-;                 sta (screenl),y
-;                 inx
-;                 iny
-;                 lda bomb_data_l,x
-;                 sta (screenl),y
-;                 inx
-;                 ldy linenum
-;                 iny
-; @mod2           cpy #$ff
-;                 bne @1
-;                 rts
-
-; draw_bomb_r     sty @mod1+1
-;                 lda end_line
-;                 sta @mod2+1
-;                 ldy start_line
-; @1              sty linenum
-;                 lda hires_table_lo,y
-;                 sta screenl
-;                 lda hires_table_hi,y
-;                 sta screenh
-; @mod1           ldy #$ff
-;                 lda bomb_data_r,x
-;                 sta (screenl),y
-;                 inx
-;                 iny
-;                 lda bomb_data_r,x
-;                 sta (screenl),y
-;                 inx
-;                 ldy linenum
-;                 iny
-; @mod2           cpy #$ff
-;                 bne @1
-;                 rts
 
 ; *** combine these ***
 
@@ -496,8 +457,6 @@ bomb_r3         .byte $2a,$55
                 ; .byte %............####................
                 ; .byte %................................		; bomb 3
 
-
-
 explode_bits
                 .byte %00000100
                 .byte %10100000
@@ -604,35 +563,10 @@ explode_bits
                 ; .byte %................................		; explode 2
 
 
-; unroll_tests
-;                 sty @mod1+1
-;                 lda end_line
-;                 sta @mod2+1
-;                 ldy start_line
-; @1              sty linenum             ; 3
-;                 lda hires_table_lo,y    ; 4
-;                 sta screenl             ; 3
-;                 lda hires_table_hi,y    ; 4
-;                 sta screenh             ; 3
-; @mod1           ldy #$ff                ; 2
-;                 lda bomb_data_l,x       ; 4
-;                 sta (screenl),y         ; 5
-;                 inx                     ; 2
-;                 iny                     ; 2
-;                 lda bomb_data_l,x       ; 4
-;                 sta (screenl),y         ; 5
-;                 inx                     ; 2
-;                 ldy linenum             ; 3
-;                 iny                     ; 2
-; @mod2           cpy #$ff                ; 3
-;                 bne @1                  ; 3
-;                 rts                     ; = 54
-
 ; 54 cycles per line
 ; 19 lines
 ; 8 bombs
 ; = 8208 cycles
-
 
 ; 14 bytes per line
 ; 142 lines

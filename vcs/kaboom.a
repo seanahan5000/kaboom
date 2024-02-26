@@ -1,6 +1,11 @@
+; ./dasm kaboom.a -lkaboom.lst -okaboom.bin -f3
+
+                processor 6502
 
 ; TODO: these should show up in special color
+; TODO: make these known values into keywords
 ; TODO: hover should give definition (from comment?)
+; TODO: convert to upper case
 
 ; write addresses
 vsync           =   $00
@@ -147,7 +152,7 @@ expBombFrame    =   $AE                 ; exploding bomb frame counter
 splashFrame     =   $AF                 ; splash frame (0000XX00)
 
 soundDuration   =   $B0                 ; sound duration
-; $B1 = speed adjusted position of bomber?
+bombVPhase      =   $B1                 ; vertical offset of bombs
 ; $B2 = hpos of bomb (held by bomber)
 ;     = (XXXX0000) hmove value -8 to +7
 ;     = (0000X000) reflect
@@ -156,9 +161,9 @@ soundDuration   =   $B0                 ; sound duration
 ; $BB-$C2 = bomb status
 
 ; $C3 = ??? empty part of bucket buffer?
-; $C4-$D3 = top bucket
-; $D4-$E3 = center bucket
-; $E4-$F3 = bottom bucket
+topBucket       =   $C4                 ; top bucket
+midBucket       =   $D4                 ; middle bucket
+botBucket       =   $E4                 ; bottom bucket
 
 ; data pointers for drawing interleaved p0/p1 data
 ; $F4-$F5 = data pointer 0
@@ -175,6 +180,15 @@ soundDuration   =   $B0                 ; sound duration
 ; $F7 = paddle reading counter
 ; $F8 = bomb about to be caught
 ; $F9 = temp counter, data holder
+
+L0009           =   $0009
+L0082           =   $0082
+L0088           =   $0088
+L00A3           =   $00A3
+L00B2           =   $00B2
+L00BB           =   $00BB
+
+        org $F000
 
 reset   SEI                             ; 2     ; F000: 78
         CLD                             ; 2     ; F001: D8
@@ -270,14 +284,14 @@ B1095   DEX                             ; 2     ; F095: CA
         STA wsync                       ; 3     ; F09A: 85 02
         STY nusiz1                      ; 3     ; F09C: 84 05
 
-; position bomber (or held bomb?) based on $99
+; position bomber/held bomb based on $99
         STY $F9                         ; 3     ; F09E: 84 F9
         STY nusiz0                      ; 3     ; F0A0: 84 04
         LDA $99                         ; 3     ; F0A2: A5 99
         STA hmp1                        ; 3     ; F0A4: 85 21
         AND #$07                        ; 2     ; F0A6: 29 07
         TAX                             ; 2     ; F0A8: AA
-        LDA $B1                         ; 3     ; F0A9: A5 B1
+        LDA bombVPhase                  ; 3     ; F0A9: A5 B1
 B10AB   DEX                             ; 2     ; F0AB: CA
         BPL B10AB                       ; 2/3   ; F0AC: 10 FD
         STA resp1                       ; 3     ; F0AE: 85 11
@@ -352,8 +366,8 @@ B111E   DEX                             ; 2     ; F11E: CA
         LDA swchb                       ; 4     ; F121: AD 82 02
         LDX playerNum                   ; 3     ; F124: A6 A0
         BNE B1129                       ; 2/3   ; F126: D0 01
-        ASL A                           ; 2     ; F128: 0A
-B1129   ASL A                           ; 2     ; F129: 0A
+        ASL                             ; 2     ; F128: 0A
+B1129   ASL                             ; 2     ; F129: 0A
         LDA #$00                        ; 2     ; F12A: A9 00
         STA $F6                         ; 3     ; F12C: 85 F6
         BCS B1132                       ; 2/3   ; F12E: B0 02
@@ -496,7 +510,7 @@ B121F   LDA $F6                         ; 3     ; F21F: A5 F6
         AND saverColorAnd               ; 3     ; F228: 25 84
         STA wsync                       ; 3     ; F22A: 85 02
         STA colup1                      ; 3     ; F22C: 85 07
-        LDA L0082                       ; 4     ; F22E: AD 82 00
+        LDA.W L0082                     ; 4     ; F22E: AD 82 00
         STA colup0                      ; 3     ; F231: 85 06
         JMP J1246                       ; 3     ; F233: 4C 46 F2
 
@@ -559,7 +573,7 @@ B129C   STX grp0                        ; 3     ; F29C: 86 1B
         LDA saverColorEor               ; 3     ; F2A0: A5 83
         AND saverColorAnd               ; 3     ; F2A2: 25 84
         STA wsync                       ; 3     ; F2A4: 85 02
-        STA L0009       ; colubk        ; 4     ; F2A6: 8D 09 00
+        STA.W L0009       ; colubk      ; 4     ; F2A6: 8D 09 00
         EOR #$88                        ; 2     ; F2A9: 49 88
         AND saverColorAnd               ; 3     ; F2AB: 25 84
         STA colup0                      ; 3     ; F2AD: 85 06
@@ -614,7 +628,7 @@ B12FB
         CLC                             ; 2     ; F2FE: 18
         BPL B1302                       ; 2/3   ; F2FF: 10 01
         SEC                             ; 2     ; F301: 38
-B1302   ROR A                           ; 2     ; F302: 6A
+B1302   ROR                             ; 2     ; F302: 6A
 ; reset screen saver if paddle moves more than +/- 1
         CMP #$02                        ; 2     ; F303: C9 02
         BCC B130D                       ; 2/3   ; F305: 90 06
@@ -641,19 +655,19 @@ B1316   STA bucketX                     ; 3     ; F316: 85 9D
 ;   $E4-$F3 = bottom bucket
         LDX #$0F                        ; 2     ; F31D: A2 0F
 B131F   LDA bucket_bits,X               ; 4+    ; F31F: BD EC F7
-        STA $C4,X                       ; 4     ; F322: 95 C4
-        STA $D4,X                       ; 4     ; F324: 95 D4
-        STA $E4,X                       ; 4     ; F326: 95 E4
+        STA topBucket,X                 ; 4     ; F322: 95 C4
+        STA midBucket,X                 ; 4     ; F324: 95 D4
+        STA botBucket,X                 ; 4     ; F326: 95 E4
         LDY playerBuckets               ; 3     ; F328: A4 A1
         BEQ B1334                       ; 2/3   ; F32A: F0 08
         DEY                             ; 2     ; F32C: 88
         BEQ B1336                       ; 2/3   ; F32D: F0 07
         DEY                             ; 2     ; F32F: 88
         BEQ B1338                       ; 2/3   ; F330: F0 06
-        BNE B133A                       ; 2/3   ; F332: D0 06
-B1334   STY $E4,X                       ; 4     ; F334: 94 E4
-B1336   STY $D4,X                       ; 4     ; F336: 94 D4
-B1338   STY $C4,X                       ; 4     ; F338: 94 C4
+        BNE B133A       ; always        ; 2/3   ; F332: D0 06
+B1334   STY botBucket,X                 ; 4     ; F334: 94 E4
+B1336   STY midBucket,X                 ; 4     ; F336: 94 D4
+B1338   STY topBucket,X                 ; 4     ; F338: 94 C4
 B133A   DEX                             ; 2     ; F33A: CA
         BPL B131F                       ; 2/3   ; F33B: 10 E2
 
@@ -661,7 +675,7 @@ B133A   DEX                             ; 2     ; F33A: CA
         LDY splashingBucket             ; 3     ; F33D: A4 9C
         LDX bucket_offsets,Y            ; 4+    ; F33F: BE E8 F7
         LDA splashFrame                 ; 3     ; F342: A5 AF
-        ASL A                           ; 2     ; F344: 0A
+        ASL                             ; 2     ; F344: 0A
         AND #$18                        ; 2     ; F345: 29 18
         TAY                             ; 2     ; F347: A8
         LDA #$07                        ; 2     ; F348: A9 07
@@ -721,7 +735,7 @@ B138D   STY saverColorEor               ; 3     ; F38D: 84 83
 
 ; check reset switch
         LDA swchb                       ; 4     ; F39E: AD 82 02
-        LSR A                           ; 2     ; F3A1: 4A
+        LSR                             ; 2     ; F3A1: 4A
         BCS B13B4                       ; 2/3   ; F3A2: B0 10
 ; reset switch pressed
         JSR clear_vars                  ; 6     ; F3A4: 20 24 F6
@@ -734,7 +748,7 @@ B138D   STY saverColorEor               ; 3     ; F38D: 84 83
         STA playerBuckets               ; 3     ; F3B0: 85 A1
         STA $A6                         ; 3     ; F3B2: 85 A6
 ; check select switch
-B13B4   LSR A                           ; 2     ; F3B4: 4A
+B13B4   LSR                             ; 2     ; F3B4: 4A
         BCS B13D0                       ; 2/3   ; F3B5: B0 19
 ; select switch pressed
         LDA $9F                         ; 3     ; F3B7: A5 9F
@@ -759,7 +773,7 @@ B13D2   BIT $80                         ; 3     ; F3D2: 24 80
         LDA vblankCount                 ; 3     ; F3DA: A5 81
         AND #$7F                        ; 2     ; F3DC: 29 7F
         BNE B13FA                       ; 2/3   ; F3DE: D0 1A
-        BEQ B142A      ; always         ; 2/4   ; F3E0: F0 48
+        BEQ B142A       ; always        ; 2/4   ; F3E0: F0 48
 
 B13E2   LDA expBombFrame                ; 3     ; F3E2: A5 AE
         BEQ B1459                       ; 2/4   ; F3E4: F0 73
@@ -768,8 +782,8 @@ B13E2   LDA expBombFrame                ; 3     ; F3E2: A5 AE
         BEQ B13FD                       ; 2/3   ; F3EA: F0 11
 B13EC   LDA expBombFrame                ; 3     ; F3EC: A5 AE
         AND #$0C                        ; 2     ; F3EE: 29 0C
-        ASL A                           ; 2     ; F3F0: 0A
-        ASL A                           ; 2     ; F3F1: 0A
+        ASL                             ; 2     ; F3F0: 0A
+        ASL                             ; 2     ; F3F1: 0A
         ADC #<explode_bits              ; 2     ; F3F2: 69 B8
         LDX expBombIndex                ; 3     ; F3F4: A6 AC
         STA $BB,X                       ; 4     ; F3F6: 95 BB
@@ -802,7 +816,7 @@ B1426   LDA $A6                         ; 3     ; F426: A5 A6
 
 ; two players?
 B142A   LDA $80                         ; 3     ; F42A: A5 80
-        LSR A                           ; 2     ; F42C: 4A
+        LSR                             ; 2     ; F42C: 4A
         BCC B1442                       ; 2/3   ; F42D: 90 13
 
 ; swap player states (playerBuckets, playerWaveNum, playerScore)
@@ -827,7 +841,7 @@ B1442   LDX playerWaveNum               ; 3     ; F442: A6 A2
         DEX                             ; 2     ; F447: CA
         STX playerWaveNum               ; 3     ; F448: 86 A2
         LDA bombs_per_wave,X            ; 4+    ; F44A: BD F3 F6
-        LSR A                           ; 2     ; F44D: 4A
+        LSR                             ; 2     ; F44D: 4A
         CLC                             ; 2     ; F44E: 18
         ADC #$01                        ; 2     ; F44F: 69 01
 B1451   STA bombCount                   ; 3     ; F451: 85 AB
@@ -840,12 +854,12 @@ B1459   BIT $AD                         ; 3     ; F459: 24 AD
         LDA swcha                       ; 4     ; F45D: AD 80 02
         LDX playerNum                   ; 3     ; F460: A6 A0
         BEQ B1465                       ; 2/3   ; F462: F0 01
-        ASL A                           ; 2     ; F464: 0A
-B1465   ASL A                           ; 2     ; F465: 0A
+        ASL                             ; 2     ; F464: 0A
+B1465   ASL                             ; 2     ; F465: 0A
         LDA #$00                        ; 2     ; F466: A9 00
         BCS B146C                       ; 2/3   ; F468: B0 02
         STA $AD                         ; 3     ; F46A: 85 AD
-B146C   STA $B1                         ; 3     ; F46C: 85 B1
+B146C   STA bombVPhase                  ; 3     ; F46C: 85 B1
         JMP J1596                       ; 3     ; F46E: 4C 96 F5
 
 ; check for random direction change of bomber every 16 vblanks
@@ -861,8 +875,8 @@ B1471   LDA vblankCount                 ; 3     ; F471: A5 81
 B1482   BIT $AD                         ; 3     ; F482: 24 AD
         BVS B14B6                       ; 2/3   ; F484: 70 30
 
-; accelerate/decelerate???
-        LDA $B1                         ; 3     ; F486: A5 B1
+; don't move bomber if bomb vertical phase is small or large
+        LDA bombVPhase                  ; 3     ; F486: A5 B1
         CMP #$11                        ; 2     ; F488: C9 11
         BCS B14B6                       ; 2/3   ; F48A: B0 2A
         CMP #$02                        ; 2     ; F48C: C9 02
@@ -970,13 +984,14 @@ B1528   LDX #$08                        ; 2     ; F528: A2 08
 B152A   LDA $BB,X                       ; 4     ; F52A: B5 BB
         BEQ B153F                       ; 2/3   ; F52C: F0 11
         DEC $88                         ; 5     ; F52E: C6 88
+; randomize bomb frame
         JSR random                      ; 6     ; F530: 20 2E F6
         EOR vblankCount                 ; 3     ; F533: 45 81
         AND #$03                        ; 2     ; F535: 29 03
-        ASL A                           ; 2     ; F537: 0A
-        ASL A                           ; 2     ; F538: 0A
-        ASL A                           ; 2     ; F539: 0A
-        ASL A                           ; 2     ; F53A: 0A
+        ASL                             ; 2     ; F537: 0A
+        ASL                             ; 2     ; F538: 0A
+        ASL                             ; 2     ; F539: 0A
+        ASL                             ; 2     ; F53A: 0A
         ADC #<bomb_bits                 ; 2     ; F53B: 69 78
         STA $BB,X                       ; 4     ; F53D: 95 BB
 B153F   DEX                             ; 2     ; F53F: CA
@@ -984,15 +999,15 @@ B153F   DEX                             ; 2     ; F53F: CA
 
 ; bomb DY or Y phase adjusted by wave number? (1, 1, 2, 2, 3, 3, 4, 4)
         LDA playerWaveNum               ; 3     ; F542: A5 A2
-        LSR A                           ; 2     ; F544: 4A
+        LSR                             ; 2     ; F544: 4A
         CLC                             ; 2     ; F545: 18
         ADC #$01                        ; 2     ; F546: 69 01
-        ADC $B1                         ; 3     ; F548: 65 B1
-        STA $B1                         ; 3     ; F54A: 85 B1
+        ADC bombVPhase                  ; 3     ; F548: 65 B1
+        STA bombVPhase                  ; 3     ; F54A: 85 B1
         SEC                             ; 2     ; F54C: 38
         SBC #$12                        ; 2     ; F54D: E9 12
         BCC J159E                       ; 2/3   ; F54F: 90 4D
-        STA $B1                         ; 3     ; F551: 85 B1
+        STA bombVPhase                  ; 3     ; F551: 85 B1
 
 ; shift bomb buffers to make room for new bomb
         LDX #$07                        ; 2     ; F553: A2 07
@@ -1018,7 +1033,7 @@ B1555   LDA $B2,X                       ; 4     ; F555: B5 B2
         INX                             ; 2     ; F576: E8
         STX playerWaveNum               ; 3     ; F577: 86 A2
 B1579   TXA                             ; 2     ; F579: 8A
-        LSR A                           ; 2     ; F57A: 4A
+        LSR                             ; 2     ; F57A: 4A
         BCS B1581                       ; 2/3   ; F57B: B0 04
         LDA $BC                         ; 3     ; F57D: A5 BC
         BNE J159E                       ; 2/3   ; F57F: D0 1D
@@ -1030,13 +1045,15 @@ B1581   INC bombCount                   ; 5     ; F581: E6 AB
         STA bombCount                   ; 3     ; F58C: 85 AB
         LDA #$7F                        ; 2     ; F58E: A9 7F
         STA $AD                         ; 3     ; F590: 85 AD
+B1592
 ; use random seed & 0x08 to flip bomb horizontally
-B1592   LDA randomSeed                  ; 3     ; F592: A5 82
+        LDA randomSeed                  ; 3     ; F592: A5 82
         AND #$08                        ; 2     ; F594: 29 08
 J1596   ORA $99                         ; 3     ; F596: 05 99
         STA $B2                         ; 3     ; F598: 85 B2
         LDA #<bomb_bits                 ; 2     ; F59A: A9 78
         STA $BB                         ; 3     ; F59C: 85 BB
+; update splash frame and sound effects
 J159E   JSR random                      ; 6     ; F59E: 20 2E F6
         AND #$03                        ; 2     ; F5A1: 29 03
         TAX                             ; 2     ; F5A3: AA
@@ -1044,7 +1061,7 @@ J159E   JSR random                      ; 6     ; F59E: 20 2E F6
         LDA $88                         ; 3     ; F5A6: A5 88
         BEQ B15B2                       ; 2/3   ; F5A8: F0 08
         TXA                             ; 2     ; F5AA: 8A
-        LSR A                           ; 2     ; F5AB: 4A
+        LSR                             ; 2     ; F5AB: 4A
         ADC #$01                        ; 2     ; F5AC: 69 01
         STA audv0                       ; 3     ; F5AE: 85 19
         LDY #$08                        ; 2     ; F5B0: A0 08
@@ -1067,7 +1084,7 @@ B15C5
         ADC expBombIndex                ; 3     ; F5CD: 65 AC
         CMP #$20                        ; 2     ; F5CF: C9 20
         BCS B15D6                       ; 2/3   ; F5D1: B0 03
-        LSR A                           ; 2     ; F5D3: 4A
+        LSR                             ; 2     ; F5D3: 4A
         LDX #$1F                        ; 2     ; F5D4: A2 1F
 B15D6   STA audv0                       ; 3     ; F5D6: 85 19
 B15D8
@@ -1075,8 +1092,8 @@ B15D8
         BEQ B15E8                       ; 2/3   ; F5DA: F0 0C
         DEC soundDuration               ; 5     ; F5DC: C6 B0
         TAX                             ; 2     ; F5DE: AA
-        LSR A                           ; 2     ; F5DF: 4A
-        LSR A                           ; 2     ; F5E0: 4A
+        LSR                             ; 2     ; F5DF: 4A
+        LSR                             ; 2     ; F5E0: 4A
         BCC B15E4                       ; 2/3   ; F5E1: 90 01
         TAX                             ; 2     ; F5E3: AA
 B15E4   LDY #$0C                        ; 2     ; F5E4: A0 0C
@@ -1087,19 +1104,19 @@ B15E8   STX audf0                       ; 3     ; F5E8: 86 17
 ; build score digit pointers
         LDY #$02                        ; 2     ; F5EC: A0 02
 B15EE   TYA                             ; 2     ; F5EE: 98
-        ASL A                           ; 2     ; F5EF: 0A
-        ASL A                           ; 2     ; F5F0: 0A
+        ASL                             ; 2     ; F5EF: 0A
+        ASL                             ; 2     ; F5F0: 0A
         TAX                             ; 2     ; F5F1: AA
         LDA L00A3,Y                     ; 4+    ; F5F2: B9 A3 00
         AND #$F0                        ; 2     ; F5F5: 29 F0
-        LSR A                           ; 2     ; F5F7: 4A
+        LSR                             ; 2     ; F5F7: 4A
         ADC #<digit_bits                ; 2     ; F5F8: 69 28
         STA $F4,X                       ; 4     ; F5FA: 95 F4
         LDA L00A3,Y                     ; 4+    ; F5FC: B9 A3 00
         AND #$0F                        ; 2     ; F5FF: 29 0F
-        ASL A                           ; 2     ; F601: 0A
-        ASL A                           ; 2     ; F602: 0A
-        ASL A                           ; 2     ; F603: 0A
+        ASL                             ; 2     ; F601: 0A
+        ASL                             ; 2     ; F602: 0A
+        ASL                             ; 2     ; F603: 0A
         ADC #<digit_bits                ; 2     ; F604: 69 28
         STA $F6,X                       ; 4     ; F606: 95 F6
         LDA #$F7                        ; 2     ; F608: A9 F7
@@ -1131,9 +1148,9 @@ B1628   STA $9E,X                       ; 4     ; F628: 95 9E
 
 ; pseudo random number generator
 random  LSR randomSeed                  ; 5     ; F62E: 46 82
-        ROL A                           ; 2     ; F630: 2A
+        ROL                             ; 2     ; F630: 2A
         EOR randomSeed                  ; 3     ; F631: 45 82
-        LSR A                           ; 2     ; F633: 4A
+        LSR                             ; 2     ; F633: 4A
         LDA randomSeed                  ; 3     ; F634: A5 82
         BCS B163C                       ; 2/3   ; F636: B0 04
         ORA #$40                        ; 2     ; F638: 09 40
@@ -1149,10 +1166,10 @@ B1640   INY                             ; 2     ; F640: C8
         STY $F9                         ; 3     ; F645: 84 F9
         EOR #$FF                        ; 2     ; F647: 49 FF
         ADC #$09                        ; 2     ; F649: 69 09
-        ASL A                           ; 2     ; F64B: 0A
-        ASL A                           ; 2     ; F64C: 0A
-        ASL A                           ; 2     ; F64D: 0A
-        ASL A                           ; 2     ; F64E: 0A
+        ASL                             ; 2     ; F64B: 0A
+        ASL                             ; 2     ; F64C: 0A
+        ASL                             ; 2     ; F64D: 0A
+        ASL                             ; 2     ; F64E: 0A
         ORA $F9                         ; 3     ; F64F: 05 F9
 S1651   RTS                             ; 6     ; F651: 60
 

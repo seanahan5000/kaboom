@@ -3,37 +3,19 @@
 ; .feature bracket_as_indirect
 
 .macro set_page
-set page = * / 256
+    page .set *
 .endmacro
 
-.macro same_page
-; ***
+.macro check_page
+    .if ((* - 1) / 256) <> (page / 256)
+        .error .sprintf("### page crossing detected at $%0.4x -> $%0.4x", page, *)
+    .endif
 .endmacro
 
-; TODO (general)
-; - Beyond syntax: ca65, need way to turn options on/of
-;   (turn off colons required on labels, for example)
-; - .include file name must be quoted
-; - Use hex or .bytes in copy/paste based on syntax?
-; - Auto-complete gets confused by ":"
-; X Test renumbering with @ cheap locals
-; X make sure renumber locals works with trailing ":"
-; - maybe separate syntax source file for CA65?
-; - think more broadly about generalization
-;   - could variations be more generalized?
-;   - ':' on labels, for example
-;   - hypothetically, how would 1000 different assemblers be handled?
-; - auto-complete is weird when:
-;   when tabbing in the middle of .byte$00 -- $ goes away
-
-; TODO (game)
+; TODO
 ; - rotate logo versus copyright
 
 ; 1023000 cycles / 60fps = 17050 cycles/frame
-
-;  40  (80/2) top lines
-; 142 (284/2) center lines
-;  10  (20/2) bottom lines
 
 topHeight       =   40
 centerHeight    =   142
@@ -71,6 +53,24 @@ hold_shift      :=  $1F
 screenl         :=  $24
 screenh         :=  $25
 
+; score variables
+mask            :=  $80
+data_ptr        :=  $81
+data_ptr_h      :=  $82
+
+; bombs variables
+bomb_phase      :=  $90
+bomb_dy         :=  $91
+bomb_index      :=  $92                 ;*** temp counter
+start_line      :=  $93
+end_line        :=  $94
+temp_ptr        :=  $95
+temp_ptr_h      :=  $96
+
+; score variables
+score           =   $a0                 ; $a0,$a1,$a2
+digit_index     =   $a3
+saw_digit       =   $a4
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
@@ -88,7 +88,7 @@ pbutton0        :=  $C061
                 .org $6000
 
 kaboom
-                lda #0                  ;***
+                lda #0
                 sta game_wave
                 lda #3
                 sta bucket_count
@@ -107,13 +107,29 @@ kaboom
 
                 jsr init_screen
 
+                lda #$00
+                sta score+0
+                sta score+1
+                sta score+2
+
                 sta primary
                 sta fullscreen
                 sta hires
                 sta graphics
 
+                jsr draw_score
+                ; jsr draw_score
+
                 jsr init_bombs          ;***
 
+                lda game_wave
+                lsr a
+                clc
+                adc #1
+                sta bomb_dy
+
+                lda #0
+                sta bomb_phase
 game_loop
                 jsr draw_bombs
                 jsr update_bombs        ;*** move later
@@ -203,9 +219,11 @@ random          lsr random_seed
                 ora #$40
                 sta random_seed
 @1              rts
-
 ;
-; Modified version of Apple II monitor ROM code
+; Modified version of Apple II monitor ROM code.
+;   This pads the cycle count so it takes the same
+;   amount of time (about 2850 cycles), regardless
+;   of the paddle value.
 ;
 ; On entry:
 ;   X: paddle to read (0-1)
@@ -215,7 +233,6 @@ random          lsr random_seed
 ;
 ; 2834 cycles maximum
 ;
-; TODO: think about making this time consistent
 ; TODO: maybe just select a 140 count range within 0-255
 ;
 read_paddle     lda $c070               ; trigger paddles
@@ -228,9 +245,6 @@ read_paddle     lda $c070               ; trigger paddles
                 bne @1                  ; 3  exit at 255 max
                 dey
                 rts
-;
-; pad cycle count so read always takes about 2850 cycles
-;
 @4              sty temp                ; 3
 @3              lda $c064,x             ; 4
                 nop                     ; 2 bpl not taken
@@ -356,4 +370,5 @@ copyright_2024
                 .include "bomber.s"
                 .include "bombs.s"
                 .include "buckets.s"
+                .include "score.s"
                 .include "tables.s"

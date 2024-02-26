@@ -255,44 +255,44 @@ bucket2_line7   =   hiresLine180
                 sta @mod+1
                 ldx #0
 @1              lda bits,x
+                sta bucket0_line0,y     ;136
                 sta bucket1_line0,y     ;152
-                sta bucket2_line0,y     ;168
-                sta bucket2_line0,y     ;168
+                sta bucket1_line0,y     ;152
                 inx
                 lda bits,x
+                sta bucket0_line1,y
                 sta bucket1_line1,y
-                sta bucket2_line1,y
-                sta bucket2_line1,y
+                sta bucket1_line1,y
                 inx
                 lda bits,x
+                sta bucket0_line2,y
                 sta bucket1_line2,y
-                sta bucket2_line2,y
-                sta bucket2_line2,y
+                sta bucket1_line2,y
                 inx
                 lda bits,x
+                sta bucket0_line3,y
                 sta bucket1_line3,y
-                sta bucket2_line3,y
-                sta bucket2_line3,y
+                sta bucket1_line3,y
                 inx
                 lda bits,x
+                sta bucket0_line4,y
                 sta bucket1_line4,y
-                sta bucket2_line4,y
-                sta bucket2_line4,y
+                sta bucket1_line4,y
                 inx
                 lda bits,x
+                sta bucket0_line5,y
                 sta bucket1_line5,y
-                sta bucket2_line5,y
-                sta bucket2_line5,y
+                sta bucket1_line5,y
                 inx
                 lda bits,x
+                sta bucket0_line6,y
                 sta bucket1_line6,y
-                sta bucket2_line6,y
-                sta bucket2_line6,y
+                sta bucket1_line6,y
                 inx
                 lda bits,x
+                sta bucket0_line7,y     ;143
                 sta bucket1_line7,y     ;159
-                sta bucket2_line7,y     ;175
-                sta bucket2_line7,y     ;175
+                sta bucket1_line7,y     ;159
                 inx
                 iny
 @mod            cpy #$ff
@@ -306,44 +306,44 @@ bucket2_line7   =   hiresLine180
                 sta @mod+1
                 ldx #0
 @1              lda bits,x
-                sta bucket2_line0,y     ;168
-                sta bucket2_line0,y     ;168
-                sta bucket2_line0,y     ;168
+                sta bucket0_line0,y     ;136
+                sta bucket0_line0,y     ;136
+                sta bucket0_line0,y     ;136
                 inx
                 lda bits,x
-                sta bucket2_line1,y
-                sta bucket2_line1,y
-                sta bucket2_line1,y
+                sta bucket0_line1,y
+                sta bucket0_line1,y
+                sta bucket0_line1,y
                 inx
                 lda bits,x
-                sta bucket2_line2,y
-                sta bucket2_line2,y
-                sta bucket2_line2,y
+                sta bucket0_line2,y
+                sta bucket0_line2,y
+                sta bucket0_line2,y
                 inx
                 lda bits,x
-                sta bucket2_line3,y
-                sta bucket2_line3,y
-                sta bucket2_line3,y
+                sta bucket0_line3,y
+                sta bucket0_line3,y
+                sta bucket0_line3,y
                 inx
                 lda bits,x
-                sta bucket2_line4,y
-                sta bucket2_line4,y
-                sta bucket2_line4,y
+                sta bucket0_line4,y
+                sta bucket0_line4,y
+                sta bucket0_line4,y
                 inx
                 lda bits,x
-                sta bucket2_line5,y
-                sta bucket2_line5,y
-                sta bucket2_line5,y
+                sta bucket0_line5,y
+                sta bucket0_line5,y
+                sta bucket0_line5,y
                 inx
                 lda bits,x
-                sta bucket2_line6,y
-                sta bucket2_line6,y
-                sta bucket2_line6,y
+                sta bucket0_line6,y
+                sta bucket0_line6,y
+                sta bucket0_line6,y
                 inx
                 lda bits,x
-                sta bucket2_line7,y     ;175
-                sta bucket2_line7,y     ;175
-                sta bucket2_line7,y     ;175
+                sta bucket0_line7,y     ;143
+                sta bucket0_line7,y     ;143
+                sta bucket0_line7,y     ;143
                 inx
                 iny
 @mod            cpy #$ff
