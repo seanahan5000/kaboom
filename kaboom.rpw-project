@@ -4,6 +4,12 @@
   },
   "srcDir": "src",
   "modules": [
-    { "src": "kaboom.s" }
+    {
+      "src": "kaboom.s",
+      "lst": "kaboom.lst"
+    }
+  ],
+  "preloads": [
+    { "bins": [{ "name": "kaboom.bin", "address": "0x6000" }] }
   ]
 }

@@ -1,5 +1,6 @@
 
 ; *** 18 (15+3) lines between bombs ***
+; *** +2 lines for clipping ***
 
 bomb_columns    .byte 2,4,6,8,10,12,14,16
 bomb_frames     .byte 1,0,0,0, 0, 0, 0, 0
@@ -10,33 +11,20 @@ init_bombs      jsr write_unrolls
                 ; ***
                 rts
 
-; *** total number of cycles varies with how much
-;   *** bottom block is clipped
 draw_bombs
-                lda #18*7
+                ; TODO: clean up/justify +1 here
+                ;   (currently needed because bomb_phase can be -1)
+                lda #18*7+1
                 clc
                 adc bomb_phase
                 sta start_line
-                lda #centerHeight
+                ; lda #centerHeight
+;               clc
+                adc #18
                 sta end_line
-
-;*** hack
-                lda start_line
-                cmp end_line
-                bcc @0
-                lda #centerHeight
-                sta start_line
-@0
-;*** hack
 
                 ldx #7
 @1              stx bomb_index
-
-;*** hack
-                lda start_line
-                cmp end_line
-                bcs @3
-;*** hack
 
                 ; randomize bomb frame
                 ldy bomb_frames,x
@@ -84,7 +72,8 @@ update_bombs
                 lda bomb_phase
                 clc
                 adc bomb_dy
-                cmp #18                 ; *** correct value?
+                ; TODO: clean up/justify -1 here
+                cmp #18-1
                 bcc @2
 ;               sec
                 sbc #18
@@ -113,6 +102,25 @@ update_bombs
 
                 lda #1
                 sta bomb_frames+0
+
+                ; erase bottom bomb
+                lda #0
+                sta bomb_frames+7
+
+                ; bump score
+                ; TODO: remember to cap at 999999 and stop
+                sed
+                sec                     ; game_wave+1
+                lda score+2
+                adc game_wave
+                sta score+2
+                lda score+1
+                adc #0
+                sta score+1
+                lda score+0
+                adc #0
+                sta score+0
+                cld
 
                 pla                     ;***
 @2              sta bomb_phase
@@ -638,13 +646,14 @@ table_ptr2_h    =   $a7                 ; <- in this order
 
 table_index     =   $a8
 
-code_buffer0    =   $4000
-code_buffer1    =   $4800
-table_buffer0_lo =  $5000
-table_buffer0_hi =  $5100
-table_buffer1_lo =  $5200
-table_buffer1_hi =  $5300
-tables_end      =   $5400
+table_buffer0_lo =  $4000
+table_buffer0_hi =  $4100
+code_buffer0    =   $4200
+
+table_buffer1_lo =  $5000
+table_buffer1_hi =  $5100
+code_buffer1    =   $5200
+clip_buffer     =   $5f00
 
 unroll_table    .word bomb_data_l,code_buffer0,table_buffer0_lo,table_buffer0_hi
                 .word bomb_data_r,code_buffer1,table_buffer1_lo,table_buffer1_hi
@@ -694,12 +703,22 @@ write_unrolls   ldy #0                  ; table entry 0
                 lda #$99                ; sta $ffff,y
                 sta (code_ptr),y
                 iny
-                lda hires_table_lo,x
+
+                cpx #bombsBottom
+                bcc @3
+                lda #<clip_buffer
+                sta (code_ptr),y
+                iny
+                lda #>clip_buffer
+                bcs @4                  ; always
+
+@3              lda hires_table_lo,x
 ;               ora #0                  ; bombLineN+0
                 sta (code_ptr),y
                 iny
                 lda hires_table_hi,x
-                sta (code_ptr),y
+
+@4              sta (code_ptr),y
                 iny
                 lda #$e8                ; inx
                 sta (code_ptr),y
@@ -716,12 +735,22 @@ write_unrolls   ldy #0                  ; table entry 0
                 lda #$99                ; sta $ffff,y
                 sta (code_ptr),y
                 iny
-                lda hires_table_lo,x
+
+                cpx #bombsBottom
+                bcc @5
+                lda #<clip_buffer
+                sta (code_ptr),y
+                iny
+                lda #>clip_buffer
+                bcs @6                  ; always
+
+@5              lda hires_table_lo,x
                 ora #1                  ; bombLineN+1
                 sta (code_ptr),y
                 iny
                 lda hires_table_hi,x
-                sta (code_ptr),y
+
+@6              sta (code_ptr),y
                 iny
                 lda #$e8                ; inx
                 sta (code_ptr),y
@@ -730,14 +759,16 @@ write_unrolls   ldy #0                  ; table entry 0
                 clc
                 adc code_ptr
                 sta code_ptr
-                bcc @3
+                bcc @7
                 inc code_ptr_h
-@3              inx
-                cpx #bombsBottom
-                bne @2
+@7              inx
+                ; TODO: limit this to the actual/exact number needed
+                cpx #bombsBottom+18+1
+                beq @8
+                jmp @2
 
 ; write final rts and terminating table entry
-                ldy #0
+@8              ldy #0
                 lda #$60                ; rts
                 sta (code_ptr),y
                 ldy table_index

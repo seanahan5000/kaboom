@@ -1,150 +1,167 @@
 
+; NOTE: Buckets can move +/- 80 pixels, so fully erasing and
+;   then redrawing buckets is the same as worst case delta update.
+
 ;
 ; On entry:
 ;   A: X position (0-139) *** minus width?
 ;
 ;   draw at X * 2
 ;
-move_buckets_left
-                jsr get_buckets_x
-                sty hold_col
-                ; stx hold_shift
+draw_buckets    lda buckets_x
+                asl
+                tax
+                lda div7,x
+                sta bucket_xcol
+                lda mod7,x
+                sta bucket_xshift
 
-                jsr draw_buckets
-
-                lda hold_col
-                clc
-                adc #bucketByteWidth
-                cmp prev_start_col
-                bcc @1
-                sta prev_start_col
-                ; cmp prev_end_col        ;***
-                ; beq @2                  ;*** force erase instead
-@1              jsr erase_bucket_cols
-@2                                      ;***
-                lda hold_col
-                sta prev_start_col
-                clc
-                adc #bucketByteWidth
-                sta prev_end_col
-                rts
-
-move_buckets_right
-                jsr get_buckets_x
-                sty hold_col
-                stx hold_shift
-
-                cpy prev_end_col
-                bcs @1
-                sty prev_end_col
-                ; cpy prev_start_col      ;***
-                ; beq @2                  ;*** force erase instead
-@1              jsr erase_bucket_cols
-@2                                      ;***
-                ldy hold_col
-                ldx hold_shift
-
-                sty prev_start_col
+                lda splash_bucket
+                asl
+                asl
+;               clc
+                adc splash_frame
+                asl
+                asl
+                asl
+;               clc
+                adc bucket_xshift
+                tay
+                lda splash_procs_lo,y
+                sta @mod1+1
+                lda splash_procs_hi,y
+                sta @mod1+2
+                ldx splash_offsets,y
+                ldy bucket_xcol
                 tya
                 clc
-                adc #6
-                sta prev_end_col
+                adc #bucketByteWidth
+@mod1           jsr $ffff
 
+                lda bucket_count
+                asl
+                asl
+                asl
+;               clc
+                adc bucket_xshift
+                tay
+                ; -8 to compensate for 1-based bucket_count
+                lda bucket_procs_lo-8,y
+                sta @mod2+1
+                lda bucket_procs_hi-8,y
+                sta @mod2+2
+                ldx bucket_offsets-8,y
+                ldy bucket_xcol
+                tya
+                clc
+                adc #bucketByteWidth
+@mod2           jmp $ffff
+
+erase_buckets   ldy bucket_xcol
+                ldx #6
+                tya
+                lsr
+                lda #$2a
+                bcc @1
+                lda #$55
+                ; set_page
+@1              sta bucket0_line0,y     ;136
+                sta bucket1_line0,y     ;152
+                sta bucket2_line0,y     ;168
+                sta bucket0_line1,y
+                sta bucket1_line1,y
+                sta bucket2_line1,y
+                sta bucket0_line2,y
+                sta bucket1_line2,y
+                sta bucket2_line2,y
+                sta bucket0_line3,y
+                sta bucket1_line3,y
+                sta bucket2_line3,y
+                sta bucket0_line4,y
+                sta bucket1_line4,y
+                sta bucket2_line4,y
+                sta bucket0_line5,y
+                sta bucket1_line5,y
+                sta bucket2_line5,y
+                sta bucket0_line6,y
+                sta bucket1_line6,y
+                sta bucket2_line6,y
+                sta bucket0_line7,y     ;143
+                sta bucket1_line7,y     ;159
+                sta bucket2_line7,y     ;175
+                eor #$7f
+                iny
+                dex
+                bne @1
+                ; check_page
+
+erase_splash_cols
+                lda splash_bucket
+                sta temp
+                ldy bucket_xcol
+                ldx #6
+                tya
+                lsr
+                lda #$2a
+                bcc @1
+                lda #$55
+@1              lsr temp
+                bne erase_splash2_cols
+                bcs erase_splash1_cols
                 ; fall through
 
-draw_buckets    txa
-                asl a
-                asl a
-;               clc
-                adc bucket_count
-                tax
-                lda draw_buckets_lo,x
-                sta @mod+1
-                lda draw_buckets_hi,x
-                sta @mod+2
-                tya
-                clc
-                adc #bucketByteWidth
-                                        ;*** clip right edge?
-                                        ;*** or assume clamping?
-@mod            jmp $ffff
-
-;
-; On entry:
-;   A: X position (0-139)   *** capped ***
-;
-;   draw at X * 2
-;
-; On exit:
-;   X: position mod 7
-;   Y: position div 7
-;
-get_buckets_x   asl a
-                tax
-                ldy div7,x
-                lda mod7,x
-                tax
+erase_splash0_cols
+                ; set_page
+@1              sta splash0_line0,y
+                sta splash0_line1,y
+                sta splash0_line2,y
+                sta splash0_line3,y
+                sta splash0_line4,y
+                sta splash0_line5,y
+                sta splash0_line6,y
+                sta splash0_line7,y
+                eor #$7f
+                iny
+                dex
+                bne @1
+                ; check_page
                 rts
 
-draw_buckets_lo .byte 0
-                .byte <draw_buckets1_0
-                .byte <draw_buckets2_0
-                .byte <draw_buckets3_0
-                .byte 0
-                .byte <draw_buckets1_1
-                .byte <draw_buckets2_1
-                .byte <draw_buckets3_1
-                .byte 0
-                .byte <draw_buckets1_2
-                .byte <draw_buckets2_2
-                .byte <draw_buckets3_2
-                .byte 0
-                .byte <draw_buckets1_3
-                .byte <draw_buckets2_3
-                .byte <draw_buckets3_3
-                .byte 0
-                .byte <draw_buckets1_4
-                .byte <draw_buckets2_4
-                .byte <draw_buckets3_4
-                .byte 0
-                .byte <draw_buckets1_5
-                .byte <draw_buckets2_5
-                .byte <draw_buckets3_5
-                .byte 0
-                .byte <draw_buckets1_6
-                .byte <draw_buckets2_6
-                .byte <draw_buckets3_6
+erase_splash1_cols
+                ; set_page
+@1              sta splash1_line0,y
+                sta splash1_line1,y
+                sta splash1_line2,y
+                sta splash1_line3,y
+                sta splash1_line4,y
+                sta splash1_line5,y
+                sta splash1_line6,y
+                sta splash1_line7,y
+                eor #$7f
+                iny
+                dex
+                bne @1
+                ; check_page
+                rts
 
-draw_buckets_hi .byte 0
-                .byte >draw_buckets1_0
-                .byte >draw_buckets2_0
-                .byte >draw_buckets3_0
-                .byte 0
-                .byte >draw_buckets1_1
-                .byte >draw_buckets2_1
-                .byte >draw_buckets3_1
-                .byte 0
-                .byte >draw_buckets1_2
-                .byte >draw_buckets2_2
-                .byte >draw_buckets3_2
-                .byte 0
-                .byte >draw_buckets1_3
-                .byte >draw_buckets2_3
-                .byte >draw_buckets3_3
-                .byte 0
-                .byte >draw_buckets1_4
-                .byte >draw_buckets2_4
-                .byte >draw_buckets3_4
-                .byte 0
-                .byte >draw_buckets1_5
-                .byte >draw_buckets2_5
-                .byte >draw_buckets3_5
-                .byte 0
-                .byte >draw_buckets1_6
-                .byte >draw_buckets2_6
-                .byte >draw_buckets3_6
+erase_splash2_cols
+                ; set_page
+@1              sta splash2_line0,y
+                sta splash2_line1,y
+                sta splash2_line2,y
+                sta splash2_line3,y
+                sta splash2_line4,y
+                sta splash2_line5,y
+                sta splash2_line6,y
+                sta splash2_line7,y
+                eor #$7f
+                iny
+                dex
+                bne @1
+                ; check_page
+                rts
 
-; *** maybe slide back up by 1 line?
+; **** use T,M,B ? ***
 
 splash0_line0   =   hiresLine133
 splash0_line1   =   hiresLine134
@@ -200,237 +217,530 @@ bucket2_line5   =   hiresLine178
 bucket2_line6   =   hiresLine179
 bucket2_line7   =   hiresLine180
 
-.macro buckets3 bits
+.macro buckets3 _bits
                 sta @mod+1
-                ldx #0
-@1              lda bits,x
+                ; set_page
+                clc
+@1              lda _bits+0,x
                 sta bucket0_line0,y     ;136
                 sta bucket1_line0,y     ;152
                 sta bucket2_line0,y     ;168
-                inx
-                lda bits,x
+                lda _bits+1,x
                 sta bucket0_line1,y
                 sta bucket1_line1,y
                 sta bucket2_line1,y
-                inx
-                lda bits,x
+                lda _bits+2,x
                 sta bucket0_line2,y
                 sta bucket1_line2,y
                 sta bucket2_line2,y
-                inx
-                lda bits,x
+                lda _bits+3,x
                 sta bucket0_line3,y
                 sta bucket1_line3,y
                 sta bucket2_line3,y
-                inx
-                lda bits,x
+                lda _bits+4,x
                 sta bucket0_line4,y
                 sta bucket1_line4,y
                 sta bucket2_line4,y
-                inx
-                lda bits,x
+                lda _bits+5,x
                 sta bucket0_line5,y
                 sta bucket1_line5,y
                 sta bucket2_line5,y
-                inx
-                lda bits,x
+                lda _bits+6,x
                 sta bucket0_line6,y
                 sta bucket1_line6,y
                 sta bucket2_line6,y
-                inx
-                lda bits,x
+                lda _bits+7,x
                 sta bucket0_line7,y     ;143
                 sta bucket1_line7,y     ;159
                 sta bucket2_line7,y     ;175
-                inx
+                txa
+;               clc
+                adc #8
+                tax
                 iny
 @mod            cpy #$ff
-                bne @1
-                rts
-.endmacro
-
-; repeat writes here and in buckets1 so that timing doesn't
-;   change based on the number of buckets
-.macro buckets2 bits
-                sta @mod+1
-                ldx #0
-@1              lda bits,x
-                sta bucket0_line0,y     ;136
-                sta bucket1_line0,y     ;152
-                sta bucket1_line0,y     ;152
-                inx
-                lda bits,x
-                sta bucket0_line1,y
-                sta bucket1_line1,y
-                sta bucket1_line1,y
-                inx
-                lda bits,x
-                sta bucket0_line2,y
-                sta bucket1_line2,y
-                sta bucket1_line2,y
-                inx
-                lda bits,x
-                sta bucket0_line3,y
-                sta bucket1_line3,y
-                sta bucket1_line3,y
-                inx
-                lda bits,x
-                sta bucket0_line4,y
-                sta bucket1_line4,y
-                sta bucket1_line4,y
-                inx
-                lda bits,x
-                sta bucket0_line5,y
-                sta bucket1_line5,y
-                sta bucket1_line5,y
-                inx
-                lda bits,x
-                sta bucket0_line6,y
-                sta bucket1_line6,y
-                sta bucket1_line6,y
-                inx
-                lda bits,x
-                sta bucket0_line7,y     ;143
-                sta bucket1_line7,y     ;159
-                sta bucket1_line7,y     ;159
-                inx
-                iny
-@mod            cpy #$ff
-                bne @1
-                rts
-.endmacro
-
-; repeat writes here and in buckets2 so that timing doesn't
-;   change based on the number of buckets
-.macro buckets1 bits
-                sta @mod+1
-                ldx #0
-@1              lda bits,x
-                sta bucket0_line0,y     ;136
-                sta bucket0_line0,y     ;136
-                sta bucket0_line0,y     ;136
-                inx
-                lda bits,x
-                sta bucket0_line1,y
-                sta bucket0_line1,y
-                sta bucket0_line1,y
-                inx
-                lda bits,x
-                sta bucket0_line2,y
-                sta bucket0_line2,y
-                sta bucket0_line2,y
-                inx
-                lda bits,x
-                sta bucket0_line3,y
-                sta bucket0_line3,y
-                sta bucket0_line3,y
-                inx
-                lda bits,x
-                sta bucket0_line4,y
-                sta bucket0_line4,y
-                sta bucket0_line4,y
-                inx
-                lda bits,x
-                sta bucket0_line5,y
-                sta bucket0_line5,y
-                sta bucket0_line5,y
-                inx
-                lda bits,x
-                sta bucket0_line6,y
-                sta bucket0_line6,y
-                sta bucket0_line6,y
-                inx
-                lda bits,x
-                sta bucket0_line7,y     ;143
-                sta bucket0_line7,y     ;143
-                sta bucket0_line7,y     ;143
-                inx
-                iny
-@mod            cpy #$ff
-                bne @1
-                rts
-.endmacro
-
-
-; ***
-; ~900 cycles (+ erase columns)
-; DX max of 160, 80, 40, 20, 10, 5, 2, 1 (of 160)
-; (subtract out width of buckets?)
-; ***
-; splashes are extra
-
-draw_buckets3_0 buckets3 bucket_0
-draw_buckets3_1 buckets3 bucket_1
-draw_buckets3_2 buckets3 bucket_2
-draw_buckets3_3 buckets3 bucket_3
-draw_buckets3_4 buckets3 bucket_4
-draw_buckets3_5 buckets3 bucket_5
-draw_buckets3_6 buckets3 bucket_6
-
-draw_buckets2_0 buckets2 bucket_0
-draw_buckets2_1 buckets2 bucket_1
-draw_buckets2_2 buckets2 bucket_2
-draw_buckets2_3 buckets2 bucket_3
-draw_buckets2_4 buckets2 bucket_4
-draw_buckets2_5 buckets2 bucket_5
-draw_buckets2_6 buckets2 bucket_6
-
-draw_buckets1_0 buckets1 bucket_0
-draw_buckets1_1 buckets1 bucket_1
-draw_buckets1_2 buckets1 bucket_2
-draw_buckets1_3 buckets1 bucket_3
-draw_buckets1_4 buckets1 bucket_4
-draw_buckets1_5 buckets1 bucket_5
-draw_buckets1_6 buckets1 bucket_6
-
-; *** may need to clip these if overlapping new buckets ***
-; always write the same number of bytes, even with overlap
-erase_bucket_cols
-                ldy prev_start_col
-                ldx #6
-                tya
-                lsr a
-                lda #$2a
-                bcc @2
-                lda #$55
-                bcs @2                  ; always
-@1              eor #$7f
-@2              sta bucket0_line0,y     ;136
-                sta bucket1_line0,y     ;152
-                sta bucket2_line0,y     ;168
-                sta bucket0_line1,y
-                sta bucket1_line1,y
-                sta bucket2_line1,y
-                sta bucket0_line2,y
-                sta bucket1_line2,y
-                sta bucket2_line2,y
-                sta bucket0_line3,y
-                sta bucket1_line3,y
-                sta bucket2_line3,y
-                sta bucket0_line4,y
-                sta bucket1_line4,y
-                sta bucket2_line4,y
-                sta bucket0_line5,y
-                sta bucket1_line5,y
-                sta bucket2_line5,y
-                sta bucket0_line6,y
-                sta bucket1_line6,y
-                sta bucket2_line6,y
-                sta bucket0_line7,y     ;143
-                sta bucket1_line7,y     ;159
-                sta bucket2_line7,y     ;175
-                dex
-                beq @3
-                iny
-                cpy prev_end_col
                 bcc @1
-                dey
-                bcs @2                  ; always
-                ; *** check for page cross ***
-@3              rts
+                ; check_page
+                rts
+.endmacro
+
+.macro buckets2 _bits
+                sta @mod+1
+                ; set_page
+                clc
+@1              lda _bits+0,x
+                sta bucket0_line0,y     ;136
+                sta bucket1_line0,y     ;152
+                sta bucket1_line0,y     ;152
+                lda _bits+1,x
+                sta bucket0_line1,y
+                sta bucket1_line1,y
+                sta bucket1_line1,y
+                lda _bits+2,x
+                sta bucket0_line2,y
+                sta bucket1_line2,y
+                sta bucket1_line2,y
+                lda _bits+3,x
+                sta bucket0_line3,y
+                sta bucket1_line3,y
+                sta bucket1_line3,y
+                lda _bits+4,x
+                sta bucket0_line4,y
+                sta bucket1_line4,y
+                sta bucket1_line4,y
+                lda _bits+5,x
+                sta bucket0_line5,y
+                sta bucket1_line5,y
+                sta bucket1_line5,y
+                lda _bits+6,x
+                sta bucket0_line6,y
+                sta bucket1_line6,y
+                sta bucket1_line6,y
+                lda _bits+7,x
+                sta bucket0_line7,y     ;143
+                sta bucket1_line7,y     ;159
+                sta bucket1_line7,y     ;159
+                txa
+;               clc
+                adc #8
+                tax
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+                rts
+.endmacro
+
+.macro buckets1 _bits
+                sta @mod+1
+                ; set_page
+                clc
+@1              lda _bits+0,x
+                sta bucket0_line0,y     ;136
+                sta bucket0_line0,y     ;136
+                sta bucket0_line0,y     ;136
+                lda _bits+1,x
+                sta bucket0_line1,y
+                sta bucket0_line1,y
+                sta bucket0_line1,y
+                lda _bits+2,x
+                sta bucket0_line2,y
+                sta bucket0_line2,y
+                sta bucket0_line2,y
+                lda _bits+3,x
+                sta bucket0_line3,y
+                sta bucket0_line3,y
+                sta bucket0_line3,y
+                lda _bits+4,x
+                sta bucket0_line4,y
+                sta bucket0_line4,y
+                sta bucket0_line4,y
+                lda _bits+5,x
+                sta bucket0_line5,y
+                sta bucket0_line5,y
+                sta bucket0_line5,y
+                lda _bits+6,x
+                sta bucket0_line6,y
+                sta bucket0_line6,y
+                sta bucket0_line6,y
+                lda _bits+7,x
+                sta bucket0_line7,y     ;143
+                sta bucket0_line7,y     ;143
+                sta bucket0_line7,y     ;143
+                txa
+;               clc
+                adc #8
+                tax
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+                rts
+.endmacro
+
+.macro splash_top _bits
+                sta @mod+1
+                ; set_page
+                clc
+@1              lda _bits+0,x
+                sta splash0_line0,y
+                lda _bits+1,x
+                sta splash0_line1,y
+                lda _bits+2,x
+                sta splash0_line2,y
+                lda _bits+3,x
+                sta splash0_line3,y
+                lda _bits+4,x
+                sta splash0_line4,y
+                lda _bits+5,x
+                sta splash0_line5,y
+                lda _bits+6,x
+                sta splash0_line6,y
+                lda _bits+7,x
+                sta splash0_line7,y
+                txa
+;               clc
+                adc #8
+                tax
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+                rts
+.endmacro
+
+.macro splash_mid _bits
+                sta @mod+1
+                ; set_page
+                clc
+@1              lda _bits+0,x
+                sta splash1_line0,y
+                lda _bits+1,x
+                sta splash1_line1,y
+                lda _bits+2,x
+                sta splash1_line2,y
+                lda _bits+3,x
+                sta splash1_line3,y
+                lda _bits+4,x
+                sta splash1_line4,y
+                lda _bits+5,x
+                sta splash1_line5,y
+                lda _bits+6,x
+                sta splash1_line6,y
+                lda _bits+7,x
+                sta splash1_line7,y
+                txa
+;               clc
+                adc #8
+                tax
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+                rts
+.endmacro
+
+.macro splash_bot _bits
+                sta @mod+1
+                ; set_page
+                clc
+@1              lda _bits+0,x
+                sta splash2_line0,y
+                lda _bits+1,x
+                sta splash2_line1,y
+                lda _bits+2,x
+                sta splash2_line2,y
+                lda _bits+3,x
+                sta splash2_line3,y
+                lda _bits+4,x
+                sta splash2_line4,y
+                lda _bits+5,x
+                sta splash2_line5,y
+                lda _bits+6,x
+                sta splash2_line6,y
+                lda _bits+7,x
+                sta splash2_line7,y
+                txa
+;               clc
+                adc #8
+                tax
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+                rts
+.endmacro
+
+bucket_procs_lo .byte <draw_buckets1_a  ; buckets1_0
+                .byte <draw_buckets1_a  ; buckets1_1
+                .byte <draw_buckets1_a  ; buckets1_2
+                .byte <draw_buckets1_a  ; buckets1_3
+                .byte <draw_buckets1_a  ; buckets1_4
+                .byte <draw_buckets1_b  ; buckets1_5
+                .byte <draw_buckets1_b  ; buckets1_6
+                .byte 0
+                .byte <draw_buckets2_a  ; buckets2_0
+                .byte <draw_buckets2_a  ; buckets2_1
+                .byte <draw_buckets2_a  ; buckets2_2
+                .byte <draw_buckets2_a  ; buckets2_3
+                .byte <draw_buckets2_a  ; buckets2_4
+                .byte <draw_buckets2_b  ; buckets2_5
+                .byte <draw_buckets2_b  ; buckets2_6
+                .byte 0
+                .byte <draw_buckets3_a  ; buckets3_0
+                .byte <draw_buckets3_a  ; buckets3_1
+                .byte <draw_buckets3_a  ; buckets3_2
+                .byte <draw_buckets3_a  ; buckets3_3
+                .byte <draw_buckets3_a  ; buckets3_4
+                .byte <draw_buckets3_b  ; buckets3_5
+                .byte <draw_buckets3_b  ; buckets3_6
+;               .byte 0
+
+bucket_procs_hi .byte >draw_buckets1_a  ; buckets1_0
+                .byte >draw_buckets1_a  ; buckets1_1
+                .byte >draw_buckets1_a  ; buckets1_2
+                .byte >draw_buckets1_a  ; buckets1_3
+                .byte >draw_buckets1_a  ; buckets1_4
+                .byte >draw_buckets1_b  ; buckets1_5
+                .byte >draw_buckets1_b  ; buckets1_6
+                .byte 0
+                .byte >draw_buckets2_a  ; buckets2_0
+                .byte >draw_buckets2_a  ; buckets2_1
+                .byte >draw_buckets2_a  ; buckets2_2
+                .byte >draw_buckets2_a  ; buckets2_3
+                .byte >draw_buckets2_a  ; buckets2_4
+                .byte >draw_buckets2_b  ; buckets2_5
+                .byte >draw_buckets2_b  ; buckets2_6
+                .byte 0
+                .byte >draw_buckets3_a  ; buckets3_0
+                .byte >draw_buckets3_a  ; buckets3_1
+                .byte >draw_buckets3_a  ; buckets3_2
+                .byte >draw_buckets3_a  ; buckets3_3
+                .byte >draw_buckets3_a  ; buckets3_4
+                .byte >draw_buckets3_b  ; buckets3_5
+                .byte >draw_buckets3_b  ; buckets3_6
+;               .byte 0
+
+bucket_offsets  .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
+                .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
+                .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
+
+draw_buckets3_a buckets3 bucket_set_a
+draw_buckets3_b buckets3 bucket_set_b
+draw_buckets2_a buckets2 bucket_set_a
+draw_buckets2_b buckets2 bucket_set_b
+draw_buckets1_a buckets1 bucket_set_a
+draw_buckets1_b buckets1 bucket_set_b
+
+splash_procs_lo .byte <draw_splash_a0   ; splash_f0_0 (top)
+                .byte <draw_splash_a0   ; splash_f0_1
+                .byte <draw_splash_a0   ; splash_f0_2
+                .byte <draw_splash_a0   ; splash_f0_3
+                .byte <draw_splash_a0   ; splash_f0_4
+                .byte <draw_splash_a0   ; splash_f0_5
+                .byte <draw_splash_a0   ; splash_f0_6
+                .byte 0
+                .byte <draw_splash_a0   ; splash_f1_0
+                .byte <draw_splash_b0   ; splash_f1_1
+                .byte <draw_splash_b0   ; splash_f1_2
+                .byte <draw_splash_b0   ; splash_f1_3
+                .byte <draw_splash_b0   ; splash_f1_4
+                .byte <draw_splash_b0   ; splash_f1_5
+                .byte <draw_splash_c0   ; splash_f1_6
+                .byte 0
+                .byte <draw_splash_c0   ; splash_f2_0
+                .byte <draw_splash_c0   ; splash_f2_1
+                .byte <draw_splash_c0   ; splash_f2_2
+                .byte <draw_splash_c0   ; splash_f2_3
+                .byte <draw_splash_d0   ; splash_f2_4
+                .byte <draw_splash_d0   ; splash_f2_5
+                .byte <draw_splash_d0   ; splash_f2_6
+                .byte 0
+                .byte <draw_splash_d0   ; splash_f3_0
+                .byte <draw_splash_d0   ; splash_f3_1
+                .byte <draw_splash_e0   ; splash_f3_2
+                .byte <draw_splash_e0   ; splash_f3_3
+                .byte <draw_splash_e0   ; splash_f3_4
+                .byte <draw_splash_e0   ; splash_f3_5
+                .byte <draw_splash_e0   ; splash_f3_6
+                .byte 0
+                .byte <draw_splash_a1   ; splash_f0_0 (mid)
+                .byte <draw_splash_a1   ; splash_f0_1
+                .byte <draw_splash_a1   ; splash_f0_2
+                .byte <draw_splash_a1   ; splash_f0_3
+                .byte <draw_splash_a1   ; splash_f0_4
+                .byte <draw_splash_a1   ; splash_f0_5
+                .byte <draw_splash_a1   ; splash_f0_6
+                .byte 0
+                .byte <draw_splash_a1   ; splash_f1_0
+                .byte <draw_splash_b1   ; splash_f1_1
+                .byte <draw_splash_b1   ; splash_f1_2
+                .byte <draw_splash_b1   ; splash_f1_3
+                .byte <draw_splash_b1   ; splash_f1_4
+                .byte <draw_splash_b1   ; splash_f1_5
+                .byte <draw_splash_c1   ; splash_f1_6
+                .byte 0
+                .byte <draw_splash_c1   ; splash_f2_0
+                .byte <draw_splash_c1   ; splash_f2_1
+                .byte <draw_splash_c1   ; splash_f2_2
+                .byte <draw_splash_c1   ; splash_f2_3
+                .byte <draw_splash_d1   ; splash_f2_4
+                .byte <draw_splash_d1   ; splash_f2_5
+                .byte <draw_splash_d1   ; splash_f2_6
+                .byte 0
+                .byte <draw_splash_d1   ; splash_f3_0
+                .byte <draw_splash_d1   ; splash_f3_1
+                .byte <draw_splash_e1   ; splash_f3_2
+                .byte <draw_splash_e1   ; splash_f3_3
+                .byte <draw_splash_e1   ; splash_f3_4
+                .byte <draw_splash_e1   ; splash_f3_5
+                .byte <draw_splash_e1   ; splash_f3_6
+                .byte 0
+                .byte <draw_splash_a2   ; splash_f0_0 (bot)
+                .byte <draw_splash_a2   ; splash_f0_1
+                .byte <draw_splash_a2   ; splash_f0_2
+                .byte <draw_splash_a2   ; splash_f0_3
+                .byte <draw_splash_a2   ; splash_f0_4
+                .byte <draw_splash_a2   ; splash_f0_5
+                .byte <draw_splash_a2   ; splash_f0_6
+                .byte 0
+                .byte <draw_splash_a2   ; splash_f1_0
+                .byte <draw_splash_b2   ; splash_f1_1
+                .byte <draw_splash_b2   ; splash_f1_2
+                .byte <draw_splash_b2   ; splash_f1_3
+                .byte <draw_splash_b2   ; splash_f1_4
+                .byte <draw_splash_b2   ; splash_f1_5
+                .byte <draw_splash_c2   ; splash_f1_6
+                .byte 0
+                .byte <draw_splash_c2   ; splash_f2_0
+                .byte <draw_splash_c2   ; splash_f2_1
+                .byte <draw_splash_c2   ; splash_f2_2
+                .byte <draw_splash_c2   ; splash_f2_3
+                .byte <draw_splash_d2   ; splash_f2_4
+                .byte <draw_splash_d2   ; splash_f2_5
+                .byte <draw_splash_d2   ; splash_f2_6
+                .byte 0
+                .byte <draw_splash_d2   ; splash_f3_0
+                .byte <draw_splash_d2   ; splash_f3_1
+                .byte <draw_splash_e2   ; splash_f3_2
+                .byte <draw_splash_e2   ; splash_f3_3
+                .byte <draw_splash_e2   ; splash_f3_4
+                .byte <draw_splash_e2   ; splash_f3_5
+                .byte <draw_splash_e2   ; splash_f3_6
+;               .byte 0
+
+splash_procs_hi .byte >draw_splash_a0   ; splash_f0_0 (top)
+                .byte >draw_splash_a0   ; splash_f0_1
+                .byte >draw_splash_a0   ; splash_f0_2
+                .byte >draw_splash_a0   ; splash_f0_3
+                .byte >draw_splash_a0   ; splash_f0_4
+                .byte >draw_splash_a0   ; splash_f0_5
+                .byte >draw_splash_a0   ; splash_f0_6
+                .byte 0
+                .byte >draw_splash_a0   ; splash_f1_0
+                .byte >draw_splash_b0   ; splash_f1_1
+                .byte >draw_splash_b0   ; splash_f1_2
+                .byte >draw_splash_b0   ; splash_f1_3
+                .byte >draw_splash_b0   ; splash_f1_4
+                .byte >draw_splash_b0   ; splash_f1_5
+                .byte >draw_splash_c0   ; splash_f1_6
+                .byte 0
+                .byte >draw_splash_c0   ; splash_f2_0
+                .byte >draw_splash_c0   ; splash_f2_1
+                .byte >draw_splash_c0   ; splash_f2_2
+                .byte >draw_splash_c0   ; splash_f2_3
+                .byte >draw_splash_d0   ; splash_f2_4
+                .byte >draw_splash_d0   ; splash_f2_5
+                .byte >draw_splash_d0   ; splash_f2_6
+                .byte 0
+                .byte >draw_splash_d0   ; splash_f3_0
+                .byte >draw_splash_d0   ; splash_f3_1
+                .byte >draw_splash_e0   ; splash_f3_2
+                .byte >draw_splash_e0   ; splash_f3_3
+                .byte >draw_splash_e0   ; splash_f3_4
+                .byte >draw_splash_e0   ; splash_f3_5
+                .byte >draw_splash_e0   ; splash_f3_6
+                .byte 0
+                .byte >draw_splash_a1   ; splash_f0_0 (mid)
+                .byte >draw_splash_a1   ; splash_f0_1
+                .byte >draw_splash_a1   ; splash_f0_2
+                .byte >draw_splash_a1   ; splash_f0_3
+                .byte >draw_splash_a1   ; splash_f0_4
+                .byte >draw_splash_a1   ; splash_f0_5
+                .byte >draw_splash_a1   ; splash_f0_6
+                .byte 0
+                .byte >draw_splash_a1   ; splash_f1_0
+                .byte >draw_splash_b1   ; splash_f1_1
+                .byte >draw_splash_b1   ; splash_f1_2
+                .byte >draw_splash_b1   ; splash_f1_3
+                .byte >draw_splash_b1   ; splash_f1_4
+                .byte >draw_splash_b1   ; splash_f1_5
+                .byte >draw_splash_c1   ; splash_f1_6
+                .byte 0
+                .byte >draw_splash_c1   ; splash_f2_0
+                .byte >draw_splash_c1   ; splash_f2_1
+                .byte >draw_splash_c1   ; splash_f2_2
+                .byte >draw_splash_c1   ; splash_f2_3
+                .byte >draw_splash_d1   ; splash_f2_4
+                .byte >draw_splash_d1   ; splash_f2_5
+                .byte >draw_splash_d1   ; splash_f2_6
+                .byte 0
+                .byte >draw_splash_d1   ; splash_f3_0
+                .byte >draw_splash_d1   ; splash_f3_1
+                .byte >draw_splash_e1   ; splash_f3_2
+                .byte >draw_splash_e1   ; splash_f3_3
+                .byte >draw_splash_e1   ; splash_f3_4
+                .byte >draw_splash_e1   ; splash_f3_5
+                .byte >draw_splash_e1   ; splash_f3_6
+                .byte 0
+                .byte >draw_splash_a2   ; splash_f0_0 (bot)
+                .byte >draw_splash_a2   ; splash_f0_1
+                .byte >draw_splash_a2   ; splash_f0_2
+                .byte >draw_splash_a2   ; splash_f0_3
+                .byte >draw_splash_a2   ; splash_f0_4
+                .byte >draw_splash_a2   ; splash_f0_5
+                .byte >draw_splash_a2   ; splash_f0_6
+                .byte 0
+                .byte >draw_splash_a2   ; splash_f1_0
+                .byte >draw_splash_b2   ; splash_f1_1
+                .byte >draw_splash_b2   ; splash_f1_2
+                .byte >draw_splash_b2   ; splash_f1_3
+                .byte >draw_splash_b2   ; splash_f1_4
+                .byte >draw_splash_b2   ; splash_f1_5
+                .byte >draw_splash_c2   ; splash_f1_6
+                .byte 0
+                .byte >draw_splash_c2   ; splash_f2_0
+                .byte >draw_splash_c2   ; splash_f2_1
+                .byte >draw_splash_c2   ; splash_f2_2
+                .byte >draw_splash_c2   ; splash_f2_3
+                .byte >draw_splash_d2   ; splash_f2_4
+                .byte >draw_splash_d2   ; splash_f2_5
+                .byte >draw_splash_d2   ; splash_f2_6
+                .byte 0
+                .byte >draw_splash_d2   ; splash_f3_0
+                .byte >draw_splash_d2   ; splash_f3_1
+                .byte >draw_splash_e2   ; splash_f3_2
+                .byte >draw_splash_e2   ; splash_f3_3
+                .byte >draw_splash_e2   ; splash_f3_4
+                .byte >draw_splash_e2   ; splash_f3_5
+                .byte >draw_splash_e2   ; splash_f3_6
+;               .byte 0
+
+splash_offsets  .byte 2*48,3*48,2*48,3*48,2*48,3*48,2*48,0   ; splash_f0_0 - 6
+                .byte 4*48,0*48,1*48,2*48,3*48,4*48,0*48,0   ; splash_f1_0 - 6
+                .byte 1*48,2*48,3*48,4*48,0*48,1*48,2*48,0   ; splash_f2_0 - 6
+                .byte 3*48,4*48,0*48,1*48,2*48,3*48,4*48,0   ; splash_f3_0 - 6
+
+                .byte 2*48,3*48,2*48,3*48,2*48,3*48,2*48,0   ; splash_f0_0 - 6
+                .byte 4*48,0*48,1*48,2*48,3*48,4*48,0*48,0   ; splash_f1_0 - 6
+                .byte 1*48,2*48,3*48,4*48,0*48,1*48,2*48,0   ; splash_f2_0 - 6
+                .byte 3*48,4*48,0*48,1*48,2*48,3*48,4*48,0   ; splash_f3_0 - 6
+
+                .byte 2*48,3*48,2*48,3*48,2*48,3*48,2*48,0   ; splash_f0_0 - 6
+                .byte 4*48,0*48,1*48,2*48,3*48,4*48,0*48,0   ; splash_f1_0 - 6
+                .byte 1*48,2*48,3*48,4*48,0*48,1*48,2*48,0   ; splash_f2_0 - 6
+                .byte 3*48,4*48,0*48,1*48,2*48,3*48,4*48,0   ; splash_f3_0 - 6
+
+draw_splash_a0  splash_top splash_set_a
+draw_splash_b0  splash_top splash_set_b
+draw_splash_c0  splash_top splash_set_c
+draw_splash_d0  splash_top splash_set_d
+draw_splash_e0  splash_top splash_set_e
+
+draw_splash_a1  splash_mid splash_set_a
+draw_splash_b1  splash_mid splash_set_b
+draw_splash_c1  splash_mid splash_set_c
+draw_splash_d1  splash_mid splash_set_d
+draw_splash_e1  splash_mid splash_set_e
+
+draw_splash_a2  splash_bot splash_set_a
+draw_splash_b2  splash_bot splash_set_b
+draw_splash_c2  splash_bot splash_set_c
+draw_splash_d2  splash_bot splash_set_d
+draw_splash_e2  splash_bot splash_set_e
 
                 .align 256
-
+bucket_set_a
 bucket_0        .byte $56,$2a,$25,$25,$25,$25,$25,$55
                 .byte $2a,$55,$29,$29,$29,$29,$29,$2a
                 .byte $55,$2a,$4a,$4a,$4a,$4a,$4a,$55
@@ -467,7 +777,8 @@ bucket_4        .byte $6a,$2a,$5a,$5a,$5a,$5a,$5a,$5a
                 .byte $55,$55,$56,$56,$56,$56,$56,$56
 
                 .align 256
-
+bucket_set_b
+splash_set_a    ; *** split/move this ***
 bucket_5        .byte $55,$55,$35,$35,$35,$35,$35,$35
                 .byte $55,$2a,$29,$29,$29,$29,$29,$55
                 .byte $2a,$55,$4a,$4a,$4a,$4a,$4a,$2a
@@ -482,44 +793,174 @@ bucket_6        .byte $2a,$2a,$6a,$6a,$6a,$6a,$6a,$6a
                 .byte $55,$2a,$29,$29,$29,$29,$29,$55
                 .byte $56,$55,$5a,$5a,$5a,$5a,$5a,$5a
 
+splash_f0_0     .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
 
-splash_bits
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000
-                .byte %00000000		; no splash
+splash_f0_1     .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
 
-                .byte %00000000
-                .byte %00000000
-                .byte %00101000
-                .byte %10000010
-                .byte %00010000
-                .byte %00111000
-                .byte %00000000
-                .byte %10010010		; splash 1
+splash_f1_0     .byte $2a,$2a,$2a,$3e,$2a,$2a,$2a,$7a
+                .byte $55,$55,$7d,$55,$55,$7f,$55,$55
+                .byte $2a,$2a,$6a,$2a,$2e,$7f,$2a,$2e
+                .byte $55,$55,$57,$55,$55,$57,$55,$75
+                .byte $2a,$2a,$2a,$2f,$2a,$2a,$2a,$2b
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
 
-                .byte %00000000
-                .byte %01000100
-                .byte %00000000
-                .byte %00010000
-                .byte %10010010
-                .byte %01000100
-                .byte %00010000
-                .byte %00010000		; splash 2
+                .align 256
+splash_set_b
+splash_f1_1     .byte $55,$55,$55,$7d,$55,$55,$55,$75
+                .byte $2a,$2a,$7a,$2a,$2a,$7e,$2a,$2b
+                .byte $55,$55,$55,$55,$5d,$7f,$55,$5d
+                .byte $2a,$2a,$2f,$2a,$2a,$2f,$2a,$6a
+                .byte $55,$55,$55,$5f,$55,$55,$55,$57
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
 
-                .byte %00000000
-                .byte %00000000
-                .byte %10000010
-                .byte %00010000
-                .byte %00000000
-                .byte %00010000
-                .byte %10010010
-                .byte %00000000		; splash 3
+splash_f1_2     .byte $2a,$2a,$2a,$7a,$2a,$2a,$2a,$6a
+                .byte $55,$55,$75,$55,$55,$7d,$55,$57
+                .byte $2a,$2a,$2b,$2a,$3a,$7f,$2a,$3a
+                .byte $55,$55,$5f,$55,$55,$5f,$55,$55
+                .byte $2a,$2a,$2a,$3e,$2a,$2a,$2a,$2f
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
 
+splash_f1_3     .byte $55,$55,$55,$75,$55,$55,$55,$55
+                .byte $2a,$2a,$6a,$2b,$2a,$7a,$2a,$2f
+                .byte $55,$55,$57,$55,$75,$7f,$55,$75
+                .byte $2a,$2a,$3e,$2a,$2a,$3f,$2a,$2a
+                .byte $55,$55,$55,$7d,$55,$55,$55,$5f
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+splash_f1_4     .byte $2a,$2a,$2a,$6a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$57,$55,$75,$55,$5f
+                .byte $2a,$2a,$2f,$2a,$6a,$7f,$2a,$6a
+                .byte $55,$55,$7d,$55,$55,$7f,$55,$55
+                .byte $2a,$2a,$2a,$7a,$2a,$2a,$2a,$3e
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f1_5     .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2f,$2a,$6a,$2a,$3e
+                .byte $55,$55,$5f,$55,$55,$7f,$55,$55
+                .byte $2a,$2a,$7a,$2a,$2b,$7f,$2a,$2b
+                .byte $55,$55,$55,$75,$55,$55,$55,$7d
+                .byte $2a,$2a,$2a,$2b,$2a,$2a,$2a,$2a
+
+                .align 256
+splash_set_c
+splash_f1_6     .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$5f,$55,$55,$55,$7d
+                .byte $2a,$2a,$3e,$2a,$2a,$7f,$2a,$2a
+                .byte $55,$55,$75,$55,$57,$7f,$55,$57
+                .byte $2a,$2a,$2b,$6a,$2a,$2b,$2a,$7a
+                .byte $55,$55,$55,$57,$55,$55,$55,$55
+
+splash_f2_0     .byte $2a,$2a,$2a,$2a,$3e,$2a,$2a,$2a
+                .byte $55,$7d,$55,$55,$55,$5d,$55,$55
+                .byte $2a,$6a,$2a,$2e,$2e,$2a,$2e,$2e
+                .byte $55,$57,$55,$55,$55,$57,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2f,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f2_1     .byte $55,$55,$55,$55,$7d,$55,$55,$55
+                .byte $2a,$7a,$2a,$2a,$2a,$3a,$2a,$2a
+                .byte $55,$55,$55,$5d,$5d,$55,$5d,$5d
+                .byte $2a,$2f,$2a,$2a,$2a,$2e,$2a,$2a
+                .byte $55,$55,$55,$55,$5f,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+splash_f2_2     .byte $2a,$2a,$2a,$2a,$7a,$2a,$2a,$2a
+                .byte $55,$75,$55,$55,$55,$75,$55,$55
+                .byte $2a,$2b,$2a,$3a,$3a,$2a,$3a,$3a
+                .byte $55,$5f,$55,$55,$55,$5d,$55,$55
+                .byte $2a,$2a,$2a,$2a,$3e,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f2_3     .byte $55,$55,$55,$55,$75,$55,$55,$55
+                .byte $2a,$6a,$2a,$2a,$2b,$6a,$2a,$2a
+                .byte $55,$57,$55,$75,$55,$55,$75,$75
+                .byte $2a,$3e,$2a,$2a,$2a,$3a,$2a,$2a
+                .byte $55,$55,$55,$55,$7d,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+                .align 256
+splash_set_d
+splash_f2_4     .byte $2a,$2a,$2a,$2a,$6a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$57,$55,$55,$55
+                .byte $2a,$2f,$2a,$6a,$6a,$2b,$6a,$6a
+                .byte $55,$7d,$55,$55,$55,$75,$55,$55
+                .byte $2a,$2a,$2a,$2a,$7a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f2_5     .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2f,$2a,$2a,$2a
+                .byte $55,$5f,$55,$55,$55,$57,$55,$55
+                .byte $2a,$7a,$2a,$2b,$2b,$6a,$2b,$2b
+                .byte $55,$55,$55,$55,$75,$55,$55,$55
+                .byte $2a,$2a,$2a,$2a,$2b,$2a,$2a,$2a
+
+splash_f2_6     .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$55,$5f,$55,$55,$55
+                .byte $2a,$3e,$2a,$2a,$2a,$2e,$2a,$2a
+                .byte $55,$75,$55,$57,$57,$55,$57,$57
+                .byte $2a,$2b,$2a,$2a,$6a,$2b,$2a,$2a
+                .byte $55,$55,$55,$55,$57,$55,$55,$55
+
+splash_f3_0     .byte $2a,$2a,$7a,$2a,$2a,$2a,$7a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2e,$2a,$2e,$2e,$2a
+                .byte $55,$55,$75,$55,$55,$55,$75,$55
+                .byte $2a,$2a,$2b,$2a,$2a,$2a,$2b,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f3_1     .byte $55,$55,$75,$55,$55,$55,$75,$55
+                .byte $2a,$2a,$2b,$2a,$2a,$2a,$2b,$2a
+                .byte $55,$55,$55,$5d,$55,$5d,$5d,$55
+                .byte $2a,$2a,$6a,$2a,$2a,$2a,$6a,$2a
+                .byte $55,$55,$57,$55,$55,$55,$57,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+                .align 256
+splash_set_e
+splash_f3_2     .byte $2a,$2a,$6a,$2a,$2a,$2a,$6a,$2a
+                .byte $55,$55,$57,$55,$55,$55,$57,$55
+                .byte $2a,$2a,$2a,$3a,$2a,$3a,$3a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2f,$2a,$2a,$2a,$2f,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f3_3     .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2f,$2a,$2a,$2a,$2f,$2a
+                .byte $55,$55,$55,$75,$55,$75,$75,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$5f,$55,$55,$55,$5f,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+splash_f3_4     .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$5f,$55,$55,$55,$5f,$55
+                .byte $2a,$2a,$2a,$6a,$2a,$6a,$6a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$3e,$2a,$2a,$2a,$3e,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+
+splash_f3_5     .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$3e,$2a,$2a,$2a,$3e,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
+                .byte $2a,$2a,$2a,$2b,$2a,$2b,$2b,$2a
+                .byte $55,$55,$7d,$55,$55,$55,$7d,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+
+splash_f3_6     .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$7d,$55,$55,$55,$7d,$55
+                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
+                .byte $55,$55,$55,$57,$55,$57,$57,$55
+                .byte $2a,$2a,$7a,$2a,$2a,$2a,$7a,$2a
+                .byte $55,$55,$55,$55,$55,$55,$55,$55
 
                 ; .byte %................................
                 ; .byte %................................

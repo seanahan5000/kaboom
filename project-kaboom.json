@@ -1,7 +1,0 @@
-{
-    "projectName": "kaboom",
-    "startAddress": "0x6000",
-    "lsts": [
-      { "fileName": "kaboom.lst", "bins": [{ "fileName": "kaboom.bin", "loadAt": "0x6000" }]}
-    ]
-}

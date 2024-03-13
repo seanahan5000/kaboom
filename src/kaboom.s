@@ -1,3 +1,46 @@
+;
+; Design notes:
+;   - Algorithms taken from disassembled VCS Kaboom!
+;   - Graphics taken from VCS and made to match as closely as possible
+;   - Goal is to run at a solid 60fps (1023000 / 60 = 17050 cycles per frame)
+;   - All drawing should be as fast a possible but limited to worst case
+;       - Want frame rate to be stable
+;
+
+; Timing:
+;   Paddle          2850
+;   Score            775
+;   Bomber          2020
+;   Bombs           4270
+;   Bucket Erase    1100
+;   Bucket Draw     1655
+;   --------------------
+;   Total          12670
+
+; TODO
+;   * fix bomb phase 0 cycle spike
+;       * add extra clipping
+;   - flipped bombs
+;   - bucket splash animation
+;   - bucket/bomb hit detection
+;   - bomb exposion sequence
+;   - bomber holding bomb
+;   - bomber smile/frown
+;   - logo/copyright animation
+;   - "vaporlock" sync
+;   ? small/difficult buckets/splashes (unlikely)
+
+; *** narrower bomber?
+; *** reduce bomber erase by wave
+; *** reduce bomb overdraw by wave
+; *** match bomber start position to VCS
+; *** figure out bomb dx spacing
+    ; *** update bombs top to bottom, if possible
+; *** add white hilite in buckets
+; *** shorten bucket top line
+; *** splash could be trimmed down to 42 bytes (6*7)
+; *** could score shift6 be removed?
+; *** make logo/copyright white? add rainbow?
 
 .feature labels_without_colons
 ; .feature bracket_as_indirect
@@ -12,14 +55,14 @@
     .endif
 .endmacro
 
-; TODO
-; - rotate logo versus copyright
-
-; 1023000 cycles / 60fps = 17050 cycles/frame
-
 topHeight       =   40
 centerHeight    =   142
 bottomHeight    =   10
+
+; NOTE: This value is chosen so that the last score digit does not
+;   have a shift of 6, avoiding artifacts on right edge of digit "4"
+; *** won't be needed if background filled with $FF ***
+scoreLeft       =   75
 
 bombsTop        =   topHeight
 bombsBottom     =   bombsTop+centerHeight
@@ -32,9 +75,15 @@ bucketsMaxX     =   121                 ; inclusive
 
 bucketByteWidth =   6
 
+logoLeft        =   13
+logoWidth       =   15
+logoHeight      =   16
+
 temp            :=  $00
 offset          :=  $01
 linenum         :=  $02
+temp_xcol       :=  $03
+temp_xshift     :=  $04
 
 vblank_count    :=  $10
 game_wave       :=  $11
@@ -43,20 +92,28 @@ buckets_x       :=  $13
 bomber_x        :=  $14
 bomber_dir      :=  $15
 random_seed     :=  $16
+score           :=  $17                 ; $17,$18,$19
 
-; *** clean up
-prev_start_col  :=  $17
-prev_end_col    :=  $18
-hold_col        :=  $1E
-hold_shift      :=  $1F
+bucket_xcol     :=  $1A
+bucket_xshift   :=  $1B
+logo_offset     :=  $1C
 
 screenl         :=  $24
 screenh         :=  $25
 
+splash_bucket   :=  $75
+splash_frame    :=  $76
+
 ; score variables
-mask            :=  $80
-data_ptr        :=  $81
-data_ptr_h      :=  $82
+lmask           :=  $80
+rmask           :=  $81
+data_ptr        :=  $82
+data_ptr_h      :=  $83
+
+; *** move to "permanent" zpage
+cur_digits      :=  $84                 ; $84,$85,$86,$87,$88,$89
+; *** temporary buffer
+new_digits      :=  $8a                 ; $8a,$8b,$8c,$8d,$8e,$8f
 
 ; bombs variables
 bomb_phase      :=  $90
@@ -67,10 +124,7 @@ end_line        :=  $94
 temp_ptr        :=  $95
 temp_ptr_h      :=  $96
 
-; score variables
-score           =   $a0                 ; $a0,$a1,$a2
-digit_index     =   $a3
-saw_digit       =   $a4
+; bomb code generation $a0-$a8
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
@@ -86,7 +140,6 @@ pbutton0        :=  $C061
                 .include "hires.s"
 
                 .org $6000
-
 kaboom
                 lda #0
                 sta game_wave
@@ -100,12 +153,12 @@ kaboom
                 sta bomber_dir
                 sta vblank_count
                 sta random_seed
+                sta logo_offset
+                sta bucket_xcol
+                sta bucket_xshift
 
-                sta prev_start_col
-                lda #1
-                sta prev_end_col
-
-                jsr init_screen
+                jsr fill_screen
+                jsr draw_logo
 
                 lda #$00
                 sta score+0
@@ -117,22 +170,36 @@ kaboom
                 sta hires
                 sta graphics
 
-                jsr draw_score
-                ; jsr draw_score
-
                 jsr init_bombs          ;***
 
+; intialize digits buffer to "no digits"
+                ldx #5
+                lda #$0A
+@1              sta cur_digits,x
+                dex
+                bpl @1
+
                 lda game_wave
-                lsr a
+                lsr
                 clc
                 adc #1
                 sta bomb_dy
 
                 lda #0
                 sta bomb_phase
-game_loop
+
+                lda #0                  ;***
+                sta splash_bucket
+                lda #0                  ;***
+                sta splash_frame
+
+game_loop       jsr draw_score
+                ; jsr erase_buckets     ;***
                 jsr draw_bombs
                 jsr update_bombs        ;*** move later
+
+                ; jsr advance_logo        ;***
+                ; *** pause on logo_offset == 0 and (logoHeight/2)*logoWidth
 
                 ; randomly change bomber's direction
                 lda vblank_count
@@ -179,29 +246,140 @@ buckets         ldx #0
                 sec
                 sbc buckets_x
                 bcc buckets_left
-
-buckets_right   lsr a
+buckets_right   lsr
                 clc
                 adc buckets_x
                 cmp #bucketsMaxX
-                bcc @1
+                bcc buckets_cmn
                 lda #bucketsMaxX
-@1              sta buckets_x
-                jsr move_buckets_right
-                inc vblank_count
-                jmp game_loop
+                bcs buckets_cmn         ; always
 
 buckets_left    sec
-                ror a
+                ror
                 clc
                 adc buckets_x
                 cmp #bucketsMinX
-                bcs @1
+                bcs buckets_cmn
                 lda #bucketsMinX
-@1              sta buckets_x
-                jsr move_buckets_left
+buckets_cmn     sta buckets_x
+                jsr erase_buckets       ;***
+                jsr draw_buckets
                 inc vblank_count
+
+; TODO: "vaporlock" sync here
+
                 jmp game_loop
+
+;---------------------------------------
+
+fill_screen
+; fill solid white lines
+;*** set high bit for lines covered by score digits ***
+                ldx #0
+@1              lda hires_table_lo,x
+                sta screenl
+                lda hires_table_hi,x
+                sta screenh
+                ldy #0
+                lda #$7e
+                sta (screenl),y
+                iny
+                lda #$7f
+@2              sta (screenl),y
+                iny
+                cpy #40
+                bne @2
+                inx
+                cpx #topHeight
+                bne @1
+
+; fill solid green lines
+@3              lda hires_table_lo,x
+                sta screenl
+                lda hires_table_hi,x
+                sta screenh
+                ldy #0
+                lda #$2a
+@4              sta (screenl),y
+                eor #$7f
+                iny
+                cpy #40
+                bne @4
+                inx
+                cpx #topHeight+centerHeight
+                bne @3
+
+; fill the first line with $80 black, for "vaporlock" detection,
+;   and the rest with $00 black
+                lda #$80                ; "vaporlock" black
+@5              ldy hires_table_lo,x
+                sty screenl
+                ldy hires_table_hi,x
+                sty screenh
+                ldy #39
+@6              sta (screenl),y
+                dey
+                bpl @6
+                lda #$00                ; normal black
+                inx
+                cpx #topHeight+centerHeight+bottomHeight
+                bne @5
+                rts
+
+advance_logo    lda logo_offset
+                clc
+                adc #logoWidth
+                cmp #logoHeight*logoWidth
+                bne @1
+                lda #0
+@1              sta logo_offset
+                ; fall through
+
+draw_logo       lda logo_offset
+                sta offset
+                ldx #topHeight+centerHeight+1
+@1              stx linenum
+                lda hires_table_lo,x
+                sta screenl
+                lda hires_table_hi,x
+                sta screenh
+                ldy #logoLeft
+                ldx offset
+@2              lda logo_graphic,x
+                sta (screenl),y
+                inx
+                iny
+                cpy #logoLeft+logoWidth
+                bne @2
+                cpx #logoWidth*logoHeight
+                bne @3
+                ldx #0
+@3              stx offset
+                ldx linenum
+                inx
+                cpx #topHeight+centerHeight+1+7
+                bne @1
+                rts
+
+logo_graphic    .byte $00,$00,$00,$00,$a8,$d5,$aa,$81,$a8,$d5,$82,$00,$00,$00,$00   ; callavision
+                .byte $00,$00,$00,$00,$00,$00,$00,$81,$8a,$00,$00,$00,$00,$00,$00
+                .byte $00,$d4,$a8,$91,$a0,$c0,$8a,$c1,$82,$95,$a2,$c5,$a0,$00,$00
+                .byte $00,$84,$88,$91,$a0,$c0,$88,$d1,$88,$81,$a2,$c4,$a2,$00,$00
+                .byte $00,$84,$a8,$91,$a0,$c0,$8a,$95,$88,$95,$a2,$c4,$aa,$00,$00
+                .byte $00,$84,$88,$91,$a0,$c0,$88,$85,$88,$90,$a2,$c4,$a8,$00,$00
+                .byte $00,$d4,$88,$d1,$a2,$c5,$88,$81,$88,$95,$a2,$c5,$a0,$00,$00
+                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+                .byte $a8,$81,$00,$00,$00,$c0,$80,$90,$a0,$c0,$8a,$95,$aa,$c4,$80   ; copyright 2024
+                .byte $88,$80,$00,$00,$00,$00,$00,$90,$a8,$81,$88,$91,$a0,$c4,$80
+                .byte $88,$d0,$a2,$c5,$88,$c5,$a8,$d1,$a2,$c0,$8a,$91,$aa,$d4,$80
+                .byte $88,$90,$a2,$c4,$88,$c1,$88,$91,$a2,$c0,$80,$91,$82,$c0,$80
+                .byte $a8,$d1,$a2,$c5,$8a,$c1,$a8,$91,$a2,$c0,$8a,$95,$aa,$c0,$80
+                .byte $00,$00,$a0,$80,$88,$00,$80,$81,$00,$00,$00,$00,$00,$00,$00
+                .byte $00,$00,$a0,$c0,$8a,$00,$a8,$81,$00,$00,$00,$00,$00,$00,$00
+                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+;---------------------------------------
+
 ;
 ; pseudo random number generator,
 ;   taken verbatim from Kaboom VCS
@@ -211,9 +389,9 @@ buckets_left    sec
 ;   C: bottom random_seed bit
 ;
 random          lsr random_seed
-                rol a
+                rol
                 eor random_seed
-                lsr a
+                lsr
                 lda random_seed
                 bcs @1
                 ora #$40
@@ -253,119 +431,7 @@ read_paddle     lda $c070               ; trigger paddles
 @5              ldy temp                ; 3
                 rts
 
-; not actually used
-; clear1          ldx #0
-;                 txa
-;                 ldy #$20
-; :               sty :+ + 2
-; :               sta $2000,x             ; modified
-;                 inx
-;                 bne :-
-;                 iny
-;                 cpy #$40
-;                 bne :--
-;                 rts
-
-init_screen
-;
-; fill solid white lines
-;
-                ldx #0
-@1              lda hires_table_lo,x
-                sta screenl
-                lda hires_table_hi,x
-                sta screenh
-                ldy #0
-                lda #$7e
-                sta (screenl),y
-                iny
-                lda #$7f
-@2              sta (screenl),y
-                iny
-                cpy #40
-                bne @2
-                inx
-                cpx #topHeight
-                bne @1
-;
-; fill solid green lines
-;
-@3              lda hires_table_lo,x
-                sta screenl
-                lda hires_table_hi,x
-                sta screenh
-                ldy #0
-                lda #$2a
-@4              sta (screenl),y
-                eor #$7f
-                iny
-                cpy #40
-                bne @4
-                inx
-                cpx #topHeight+centerHeight
-                bne @3
-;
-; fill solid black lines
-;
-@5              lda hires_table_lo,x
-                sta screenl
-                lda hires_table_hi,x
-                sta screenh
-                ldy #0
-                tya
-@6              sta (screenl),y
-                iny
-                cpy #40
-                bne @6
-                inx
-                cpx #topHeight+centerHeight+bottomHeight
-                bne @5
-;
-; draw callavision graphic
-;
-                lda #0
-                sta offset
-                ldx #topHeight+centerHeight+1
-@7              stx linenum
-                lda hires_table_lo,x
-                sta screenl
-                lda hires_table_hi,x
-                sta screenh
-                ldy #14
-                ldx offset
-@8              lda callavision,x
-                sta (screenl),y
-                inx
-                iny
-                cpy #26
-                bne @8
-                stx offset
-                ldx linenum
-                inx
-                cpx #topHeight+centerHeight+1+7
-                bne @7
-                rts
-
-callavision     .byte $80,$80,$80,$a8,$d5,$aa,$81,$a8,$d5,$82,$80,$80
-                .byte $80,$80,$80,$80,$80,$80,$81,$8a,$80,$80,$80,$80
-                .byte $d4,$a8,$91,$a0,$c0,$8a,$c1,$82,$95,$a2,$c5,$a0
-                .byte $84,$88,$91,$a0,$c0,$88,$d1,$88,$81,$a2,$c4,$a2
-                .byte $84,$a8,$91,$a0,$c0,$8a,$95,$88,$95,$a2,$c4,$aa
-                .byte $84,$88,$91,$a0,$c0,$88,$85,$88,$90,$a2,$c4,$a8
-                .byte $d4,$88,$d1,$a2,$c5,$88,$81,$88,$95,$a2,$c5,$a0
-
-; *** add copyright image ***
-
-copyright_2024
-                ;{"x":91,"y":159,"width":105,"height":8}
-                .byte $a8,$81,$80,$80,$80,$c0,$80,$90,$a0,$c0,$8a,$95,$aa,$c4,$80
-                .byte $88,$80,$80,$80,$80,$80,$80,$90,$a8,$81,$88,$91,$a0,$c4,$80
-                .byte $88,$d0,$a2,$c5,$88,$c5,$a8,$d1,$a2,$c0,$8a,$91,$aa,$d4,$80
-                .byte $88,$90,$a2,$c4,$88,$c1,$88,$91,$a2,$c0,$80,$91,$82,$c0,$80
-                .byte $a8,$d1,$a2,$c5,$8a,$c1,$a8,$91,$a2,$c0,$8a,$95,$aa,$c0,$80
-                .byte $80,$80,$a0,$80,$88,$80,$80,$81,$80,$80,$80,$80,$80,$80,$80
-                .byte $80,$80,$a0,$c0,$8a,$80,$a8,$81,$80,$80,$80,$80,$80,$80,$80
-                .byte $80,$80,$80,$80,$80,$80,$80,$80,$80,$80,$80,$80,$80,$80,$80
+;---------------------------------------
 
                 .include "bomber.s"
                 .include "bombs.s"

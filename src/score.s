@@ -8,176 +8,201 @@ scoreLine5      =   hiresLine6
 scoreLine6      =   hiresLine7
 scoreLine7      =   hiresLine8
 
-digit_x         .byte 0*18+77
-                .byte 1*18+77
-                .byte 2*18+77
-                .byte 3*18+77
-                .byte 4*18+77
-                .byte 5*18+77
+digit_x         .byte 0*18+scoreLeft
+                .byte 1*18+scoreLeft
+                .byte 2*18+scoreLeft
+                .byte 3*18+scoreLeft
+                .byte 4*18+scoreLeft
+                .byte 5*18+scoreLeft
 
-; 2737 cycles
-
-draw_score      ldy #0
-                sty saw_digit
-                sty digit_index
-@1              tya
-                lsr
-                tax
-                lda score,x
+draw_score
+; expand score into new_digits buffer
+                ldx #0
+                ldy #0
+@1              lda score,y
+                iny
                 pha
                 lsr
                 lsr
                 lsr
                 lsr
-                jsr @sub
+                sta new_digits,x
+                inx
                 pla
-                ldy digit_index
-                and #$0F
-                jsr @sub
-                ldy digit_index
-                cpy #6
+                and #$0f
+                sta new_digits,x
+                inx
+                cpx #6
                 bne @1
-                rts
 
-@sub            bne @2
-                bit saw_digit
-                bmi @3
-                cpy #5
-                beq @3
-                lda #10
-                bne @3                  ; always
-@2              dec saw_digit
-@3              inc digit_index
-                ldx digit_x,y
-                ; fall through
-;
-; On entry:
-;   A: digit
-;   X: position
-;
-draw_digit      asl
+; clear leading zeroes
+                ldx #0
+                lda #$0a
+@2              ldy new_digits,x
+                bne @3
+                sta new_digits,x
+                inx
+                cpx #5
+                bne @2
+@3
+; draw first changed digit, but always draw something
+                ldx #$ff
+@4              inx
+                lda new_digits,x
+                cmp cur_digits,x
+                bne @5
+                cpx #5
+                bne @4
+
+@5              sta cur_digits,x
                 asl
                 asl
-                pha
-                ldy mod7,x
-                lda digit_masks,y
-                sta mask
-                sty temp
-                pla
+                asl                     ; clc
+                sta temp                ; temp = digit * 8
+                ldy digit_x,x           ; y = actual x coordinate
+                ldx mod7,y              ; x = shift
+                lda digit_lmasks,x
+                sta lmask
+                lda digit_rmasks,x
+                sta rmask
+                txa
 ;               clc
-                adc temp
-                tay
-                lda digits_lo,y
-                sta data_ptr
-                lda digits_hi,y
-                sta data_ptr_h
-                lda div7,x
+                adc temp                ; shift + digit * 8
                 tax
+                lda digits_lo,x
+                sta data_ptr
+                lda digits_hi,x
+                sta data_ptr_h
+                ldx div7,y              ; x = column
                 ldy #0
 
                 lda scoreLine0+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine0+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine0+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine0+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine0+2,x
                 iny
 
                 lda scoreLine1+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine1+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine1+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine1+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine1+2,x
                 iny
 
                 lda scoreLine2+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine2+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine2+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine2+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine2+2,x
                 iny
 
                 lda scoreLine3+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine3+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine3+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine3+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine3+2,x
                 iny
 
                 lda scoreLine4+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine4+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine4+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine4+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine4+2,x
                 iny
 
                 lda scoreLine5+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine5+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine5+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine5+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine5+2,x
                 iny
 
                 lda scoreLine6+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine6+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine6+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine6+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine6+2,x
                 iny
 
                 lda scoreLine7+0,x
-                and mask
+                and lmask
                 ora (data_ptr),y
                 sta scoreLine7+0,x
                 iny
                 lda (data_ptr),y
                 sta scoreLine7+1,x
                 iny
-                lda (data_ptr),y
+                lda scoreLine7+2,x
+                and rmask
+                ora (data_ptr),y
                 sta scoreLine7+2,x
                 rts
 
-digit_masks     .byte $80
-                .byte $81
-                .byte $83
-                .byte $87
-                .byte $8f
-                .byte $9f
-                .byte $bf
+digit_lmasks    .byte %00000000
+                .byte %00000001
+                .byte %00000011
+                .byte %00000111
+                .byte %00001111
+                .byte %00011111
+                .byte %00111111
+
+digit_rmasks    .byte %01111110
+                .byte %01111100
+                .byte %01111000
+                .byte %01110000
+                .byte %01100000
+                .byte %01000000
+                .byte %00000000
 
 digits_lo       .byte <digits0_0
                 .byte <digits0_1
@@ -187,7 +212,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits0_5
                 .byte <digits0_6
                 .byte 0
-
                 .byte <digits1_0
                 .byte <digits1_1
                 .byte <digits1_2
@@ -196,7 +220,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits1_5
                 .byte <digits1_6
                 .byte 0
-
                 .byte <digits2_0
                 .byte <digits2_1
                 .byte <digits2_2
@@ -205,7 +228,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits2_5
                 .byte <digits2_6
                 .byte 0
-
                 .byte <digits3_0
                 .byte <digits3_1
                 .byte <digits3_2
@@ -214,7 +236,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits3_5
                 .byte <digits3_6
                 .byte 0
-
                 .byte <digits4_0
                 .byte <digits4_1
                 .byte <digits4_2
@@ -223,7 +244,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits4_5
                 .byte <digits4_6
                 .byte 0
-
                 .byte <digits5_0
                 .byte <digits5_1
                 .byte <digits5_2
@@ -232,7 +252,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits5_5
                 .byte <digits5_6
                 .byte 0
-
                 .byte <digits6_0
                 .byte <digits6_1
                 .byte <digits6_2
@@ -241,7 +260,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits6_5
                 .byte <digits6_6
                 .byte 0
-
                 .byte <digits7_0
                 .byte <digits7_1
                 .byte <digits7_2
@@ -250,7 +268,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits7_5
                 .byte <digits7_6
                 .byte 0
-
                 .byte <digits8_0
                 .byte <digits8_1
                 .byte <digits8_2
@@ -259,7 +276,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits8_5
                 .byte <digits8_6
                 .byte 0
-
                 .byte <digits9_0
                 .byte <digits9_1
                 .byte <digits9_2
@@ -268,7 +284,6 @@ digits_lo       .byte <digits0_0
                 .byte <digits9_5
                 .byte <digits9_6
                 .byte 0
-
                 .byte <digitsX_0
                 .byte <digitsX_1
                 .byte <digitsX_2
@@ -286,7 +301,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits0_5
                 .byte >digits0_6
                 .byte 0
-
                 .byte >digits1_0
                 .byte >digits1_1
                 .byte >digits1_2
@@ -295,7 +309,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits1_5
                 .byte >digits1_6
                 .byte 0
-
                 .byte >digits2_0
                 .byte >digits2_1
                 .byte >digits2_2
@@ -304,7 +317,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits2_5
                 .byte >digits2_6
                 .byte 0
-
                 .byte >digits3_0
                 .byte >digits3_1
                 .byte >digits3_2
@@ -313,7 +325,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits3_5
                 .byte >digits3_6
                 .byte 0
-
                 .byte >digits4_0
                 .byte >digits4_1
                 .byte >digits4_2
@@ -322,7 +333,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits4_5
                 .byte >digits4_6
                 .byte 0
-
                 .byte >digits5_0
                 .byte >digits5_1
                 .byte >digits5_2
@@ -331,7 +341,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits5_5
                 .byte >digits5_6
                 .byte 0
-
                 .byte >digits6_0
                 .byte >digits6_1
                 .byte >digits6_2
@@ -340,7 +349,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits6_5
                 .byte >digits6_6
                 .byte 0
-
                 .byte >digits7_0
                 .byte >digits7_1
                 .byte >digits7_2
@@ -349,7 +357,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits7_5
                 .byte >digits7_6
                 .byte 0
-
                 .byte >digits8_0
                 .byte >digits8_1
                 .byte >digits8_2
@@ -358,7 +365,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits8_5
                 .byte >digits8_6
                 .byte 0
-
                 .byte >digits9_0
                 .byte >digits9_1
                 .byte >digits9_2
@@ -367,7 +373,6 @@ digits_hi       .byte >digits0_0
                 .byte >digits9_5
                 .byte >digits9_6
                 .byte 0
-
                 .byte >digitsX_0
                 .byte >digitsX_1
                 .byte >digitsX_2
@@ -377,59 +382,59 @@ digits_hi       .byte >digits0_0
                 .byte >digitsX_6
 ;               .byte 0
 
-digits0_0       .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
+digits0_0       .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
 
-digits0_1       .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
+digits0_1       .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
 
-digits0_2       .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
+digits0_2       .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
 
-digits0_3       .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
+digits0_3       .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
 
-digits0_4       .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
+digits0_4       .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
 
-digits0_5       .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
+digits0_5       .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
 
 digits0_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
@@ -440,59 +445,59 @@ digits0_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
                 .byte $c0,$d5,$fa
 
-digits1_0       .byte $af,$fd,$ff
-                .byte $ab,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $ab,$f5,$ff
+digits1_0       .byte $af,$fd,$81
+                .byte $ab,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $ab,$f5,$81
 
-digits1_1       .byte $de,$fa,$ff
-                .byte $d6,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $d6,$ea,$ff
+digits1_1       .byte $de,$fa,$83
+                .byte $d6,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $d6,$ea,$83
 
-digits1_2       .byte $bc,$f5,$ff
-                .byte $ac,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $ac,$d5,$ff
+digits1_2       .byte $bc,$f5,$87
+                .byte $ac,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $ac,$d5,$87
 
-digits1_3       .byte $f8,$ea,$ff
-                .byte $d8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $d8,$aa,$ff
+digits1_3       .byte $f8,$ea,$8f
+                .byte $d8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $d8,$aa,$8f
 
-digits1_4       .byte $f0,$d5,$ff
-                .byte $b0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $b0,$d5,$fe
+digits1_4       .byte $f0,$d5,$9f
+                .byte $b0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $b0,$d5,$9e
 
-digits1_5       .byte $e0,$ab,$ff
-                .byte $e0,$aa,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$aa,$fd
+digits1_5       .byte $e0,$ab,$bf
+                .byte $e0,$aa,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$aa,$bd
 
 digits1_6       .byte $c0,$d7,$fe
                 .byte $c0,$d5,$fe
@@ -503,59 +508,59 @@ digits1_6       .byte $c0,$d7,$fe
                 .byte $c0,$d7,$fe
                 .byte $c0,$d5,$fa
 
-digits2_0       .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ab,$f5,$ff
-                .byte $ea,$ff,$ff
-                .byte $ea,$ff,$ff
-                .byte $aa,$d5,$ff
+digits2_0       .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $ab,$f5,$81
+                .byte $ea,$ff,$81
+                .byte $ea,$ff,$81
+                .byte $aa,$d5,$81
 
-digits2_1       .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$ab,$ff
-                .byte $d6,$ea,$ff
-                .byte $d4,$ff,$ff
-                .byte $d4,$ff,$ff
-                .byte $d4,$aa,$ff
+digits2_1       .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $fe,$ab,$83
+                .byte $fe,$ab,$83
+                .byte $d6,$ea,$83
+                .byte $d4,$ff,$83
+                .byte $d4,$ff,$83
+                .byte $d4,$aa,$83
 
-digits2_2       .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $fc,$d7,$fe
-                .byte $fc,$d7,$fe
-                .byte $ac,$d5,$ff
-                .byte $a8,$ff,$ff
-                .byte $a8,$ff,$ff
-                .byte $a8,$d5,$fe
+digits2_2       .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $fc,$d7,$86
+                .byte $fc,$d7,$86
+                .byte $ac,$d5,$87
+                .byte $a8,$ff,$87
+                .byte $a8,$ff,$87
+                .byte $a8,$d5,$86
 
-digits2_3       .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $f8,$af,$fd
-                .byte $f8,$af,$fd
-                .byte $d8,$aa,$ff
-                .byte $d0,$fe,$ff
-                .byte $d0,$fe,$ff
-                .byte $d0,$aa,$fd
+digits2_3       .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $f8,$af,$8d
+                .byte $f8,$af,$8d
+                .byte $d8,$aa,$8f
+                .byte $d0,$fe,$8f
+                .byte $d0,$fe,$8f
+                .byte $d0,$aa,$8d
 
-digits2_4       .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $f0,$df,$fa
-                .byte $f0,$df,$fa
-                .byte $b0,$d5,$fe
-                .byte $a0,$fd,$ff
-                .byte $a0,$fd,$ff
-                .byte $a0,$d5,$fa
+digits2_4       .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $f0,$df,$9a
+                .byte $f0,$df,$9a
+                .byte $b0,$d5,$9e
+                .byte $a0,$fd,$9f
+                .byte $a0,$fd,$9f
+                .byte $a0,$d5,$9a
 
-digits2_5       .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$aa,$fd
-                .byte $c0,$fa,$ff
-                .byte $c0,$fa,$ff
-                .byte $c0,$aa,$f5
+digits2_5       .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $e0,$bf,$b5
+                .byte $e0,$bf,$b5
+                .byte $e0,$aa,$bd
+                .byte $c0,$fa,$bf
+                .byte $c0,$fa,$bf
+                .byte $c0,$aa,$b5
 
 digits2_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
@@ -566,59 +571,59 @@ digits2_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ff
                 .byte $80,$d5,$ea
 
-digits3_0       .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $bf,$d5,$ff
-                .byte $bf,$f5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
+digits3_0       .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $bf,$d5,$81
+                .byte $bf,$f5,$81
+                .byte $ff,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
 
-digits3_1       .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$aa,$ff
-                .byte $fe,$ea,$ff
-                .byte $fe,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
+digits3_1       .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $fe,$ab,$83
+                .byte $fe,$aa,$83
+                .byte $fe,$ea,$83
+                .byte $fe,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
 
-digits3_2       .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $fc,$d7,$fe
-                .byte $fc,$d5,$fe
-                .byte $fc,$d5,$ff
-                .byte $fc,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
+digits3_2       .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $fc,$d7,$86
+                .byte $fc,$d5,$86
+                .byte $fc,$d5,$87
+                .byte $fc,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
 
-digits3_3       .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $f8,$af,$fd
-                .byte $f8,$ab,$fd
-                .byte $f8,$ab,$ff
-                .byte $f8,$af,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
+digits3_3       .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $f8,$af,$8d
+                .byte $f8,$ab,$8d
+                .byte $f8,$ab,$8f
+                .byte $f8,$af,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
 
-digits3_4       .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $f0,$df,$fa
-                .byte $f0,$d7,$fa
-                .byte $f0,$d7,$fe
-                .byte $f0,$df,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
+digits3_4       .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $f0,$df,$9a
+                .byte $f0,$d7,$9a
+                .byte $f0,$d7,$9e
+                .byte $f0,$df,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
 
-digits3_5       .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$af,$f5
-                .byte $e0,$af,$fd
-                .byte $e0,$bf,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
+digits3_5       .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $e0,$bf,$b5
+                .byte $e0,$af,$b5
+                .byte $e0,$af,$bd
+                .byte $e0,$bf,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
 
 digits3_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
@@ -629,122 +634,122 @@ digits3_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
                 .byte $c0,$d5,$fa
 
-digits4_0       .byte $bf,$d5,$ff
-                .byte $af,$d5,$ff
-                .byte $eb,$d5,$ff
-                .byte $fa,$d5,$ff
-                .byte $aa,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ff,$d5,$ff
+digits4_0       .byte $bf,$d5,$81
+                .byte $af,$d5,$81
+                .byte $eb,$d5,$81
+                .byte $fa,$d5,$81
+                .byte $aa,$d5,$80
+                .byte $ff,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $ff,$d5,$81
 
-digits4_1       .byte $fe,$aa,$ff
-                .byte $de,$aa,$ff
-                .byte $d6,$ab,$ff
-                .byte $f4,$ab,$ff
-                .byte $d4,$aa,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$ab,$ff
+digits4_1       .byte $fe,$aa,$83
+                .byte $de,$aa,$83
+                .byte $d6,$ab,$83
+                .byte $f4,$ab,$83
+                .byte $d4,$aa,$81
+                .byte $fe,$ab,$83
+                .byte $fe,$ab,$83
+                .byte $fe,$ab,$83
 
-digits4_2       .byte $fc,$d5,$fe
-                .byte $bc,$d5,$fe
-                .byte $ac,$d7,$fe
-                .byte $e8,$d7,$fe
-                .byte $a8,$d5,$fe
-                .byte $fc,$d7,$fe
-                .byte $fc,$d7,$fe
-                .byte $fc,$d7,$fe
+digits4_2       .byte $fc,$d5,$86
+                .byte $bc,$d5,$86
+                .byte $ac,$d7,$86
+                .byte $e8,$d7,$86
+                .byte $a8,$d5,$82
+                .byte $fc,$d7,$86
+                .byte $fc,$d7,$86
+                .byte $fc,$d7,$86
 
-digits4_3       .byte $f8,$ab,$fd
-                .byte $f8,$aa,$fd
-                .byte $d8,$ae,$fd
-                .byte $d0,$af,$fd
-                .byte $d0,$aa,$fd
-                .byte $f8,$af,$fd
-                .byte $f8,$af,$fd
-                .byte $f8,$af,$fd
+digits4_3       .byte $f8,$ab,$8d
+                .byte $f8,$aa,$8d
+                .byte $d8,$ae,$8d
+                .byte $d0,$af,$8d
+                .byte $d0,$aa,$85
+                .byte $f8,$af,$8d
+                .byte $f8,$af,$8d
+                .byte $f8,$af,$8d
 
-digits4_4       .byte $f0,$d7,$fa
-                .byte $f0,$d5,$fa
-                .byte $b0,$dd,$fa
-                .byte $a0,$df,$fa
-                .byte $a0,$d5,$fa
-                .byte $f0,$df,$fa
-                .byte $f0,$df,$fa
-                .byte $f0,$df,$fa
+digits4_4       .byte $f0,$d7,$9a
+                .byte $f0,$d5,$9a
+                .byte $b0,$dd,$9a
+                .byte $a0,$df,$9a
+                .byte $a0,$d5,$8a
+                .byte $f0,$df,$9a
+                .byte $f0,$df,$9a
+                .byte $f0,$df,$9a
 
-digits4_5       .byte $e0,$af,$f5
-                .byte $e0,$ab,$f5
-                .byte $e0,$ba,$f5
-                .byte $c0,$be,$f5
-                .byte $c0,$aa,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$bf,$f5
+digits4_5       .byte $e0,$af,$b5
+                .byte $e0,$ab,$b5
+                .byte $e0,$ba,$b5
+                .byte $c0,$be,$b5
+                .byte $c0,$aa,$95
+                .byte $e0,$bf,$b5
+                .byte $e0,$bf,$b5
+                .byte $e0,$bf,$b5
 
 digits4_6       .byte $c0,$df,$ea
                 .byte $c0,$d7,$ea
                 .byte $c0,$f5,$ea
                 .byte $80,$fd,$ea
-                .byte $80,$d5,$ea
+                .byte $80,$d5,$aa
                 .byte $c0,$ff,$ea
                 .byte $c0,$ff,$ea
                 .byte $c0,$ff,$ea
 
-digits5_0       .byte $aa,$d5,$ff
-                .byte $ea,$ff,$ff
-                .byte $ea,$ff,$ff
-                .byte $aa,$f5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $aa,$f5,$ff
+digits5_0       .byte $aa,$d5,$81
+                .byte $ea,$ff,$81
+                .byte $ea,$ff,$81
+                .byte $aa,$f5,$81
+                .byte $ff,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $fa,$d5,$81
+                .byte $aa,$f5,$81
 
-digits5_1       .byte $d4,$aa,$ff
-                .byte $d4,$ff,$ff
-                .byte $d4,$ff,$ff
-                .byte $d4,$ea,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ea,$ff
+digits5_1       .byte $d4,$aa,$83
+                .byte $d4,$ff,$83
+                .byte $d4,$ff,$83
+                .byte $d4,$ea,$83
+                .byte $fe,$ab,$83
+                .byte $fe,$ab,$83
+                .byte $f4,$ab,$83
+                .byte $d4,$ea,$83
 
-digits5_2       .byte $a8,$d5,$fe
-                .byte $a8,$ff,$ff
-                .byte $a8,$ff,$ff
-                .byte $a8,$d5,$ff
-                .byte $fc,$d7,$fe
-                .byte $fc,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d5,$ff
+digits5_2       .byte $a8,$d5,$86
+                .byte $a8,$ff,$87
+                .byte $a8,$ff,$87
+                .byte $a8,$d5,$87
+                .byte $fc,$d7,$86
+                .byte $fc,$d7,$86
+                .byte $e8,$d7,$86
+                .byte $a8,$d5,$87
 
-digits5_3       .byte $d0,$aa,$fd
-                .byte $d0,$fe,$ff
-                .byte $d0,$fe,$ff
-                .byte $d0,$aa,$ff
-                .byte $f8,$af,$fd
-                .byte $f8,$af,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$aa,$ff
+digits5_3       .byte $d0,$aa,$8d
+                .byte $d0,$fe,$8f
+                .byte $d0,$fe,$8f
+                .byte $d0,$aa,$8f
+                .byte $f8,$af,$8d
+                .byte $f8,$af,$8d
+                .byte $d0,$af,$8d
+                .byte $d0,$aa,$8f
 
-digits5_4       .byte $a0,$d5,$fa
-                .byte $a0,$fd,$ff
-                .byte $a0,$fd,$ff
-                .byte $a0,$d5,$fe
-                .byte $f0,$df,$fa
-                .byte $f0,$df,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$d5,$fe
+digits5_4       .byte $a0,$d5,$9a
+                .byte $a0,$fd,$9f
+                .byte $a0,$fd,$9f
+                .byte $a0,$d5,$9e
+                .byte $f0,$df,$9a
+                .byte $f0,$df,$9a
+                .byte $a0,$df,$9a
+                .byte $a0,$d5,$9e
 
-digits5_5       .byte $c0,$aa,$f5
-                .byte $c0,$fa,$ff
-                .byte $c0,$fa,$ff
-                .byte $c0,$aa,$fd
-                .byte $e0,$bf,$f5
-                .byte $e0,$bf,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$aa,$fd
+digits5_5       .byte $c0,$aa,$b5
+                .byte $c0,$fa,$bf
+                .byte $c0,$fa,$bf
+                .byte $c0,$aa,$bd
+                .byte $e0,$bf,$b5
+                .byte $e0,$bf,$b5
+                .byte $c0,$be,$b5
+                .byte $c0,$aa,$bd
 
 digits5_6       .byte $80,$d5,$ea
                 .byte $80,$f5,$ff
@@ -752,62 +757,62 @@ digits5_6       .byte $80,$d5,$ea
                 .byte $80,$d5,$fa
                 .byte $c0,$ff,$ea
                 .byte $c0,$ff,$ea
-                .byte $80,$f5,$ea
+                .byte $80,$fd,$ea
                 .byte $80,$d5,$fa
 
-digits6_0       .byte $ab,$f5,$ff
-                .byte $ea,$d7,$ff
-                .byte $ea,$ff,$ff
-                .byte $aa,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
+digits6_0       .byte $ab,$f5,$81
+                .byte $ea,$d7,$81
+                .byte $ea,$ff,$81
+                .byte $aa,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
 
-digits6_1       .byte $d6,$ea,$ff
-                .byte $d4,$af,$ff
-                .byte $d4,$ff,$ff
-                .byte $d4,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
+digits6_1       .byte $d6,$ea,$83
+                .byte $d4,$af,$83
+                .byte $d4,$ff,$83
+                .byte $d4,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
 
-digits6_2       .byte $ac,$d5,$ff
-                .byte $a8,$df,$fe
-                .byte $a8,$ff,$ff
-                .byte $a8,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
+digits6_2       .byte $ac,$d5,$87
+                .byte $a8,$df,$86
+                .byte $a8,$ff,$87
+                .byte $a8,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
 
-digits6_3       .byte $d8,$aa,$ff
-                .byte $d0,$be,$fd
-                .byte $d0,$fe,$ff
-                .byte $d0,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
+digits6_3       .byte $d8,$aa,$8f
+                .byte $d0,$be,$8d
+                .byte $d0,$fe,$8f
+                .byte $d0,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
 
-digits6_4       .byte $b0,$d5,$fe
-                .byte $a0,$fd,$fa
-                .byte $a0,$fd,$ff
-                .byte $a0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
+digits6_4       .byte $b0,$d5,$9e
+                .byte $a0,$fd,$9a
+                .byte $a0,$fd,$9f
+                .byte $a0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
 
-digits6_5       .byte $e0,$aa,$fd
-                .byte $c0,$fa,$f5
-                .byte $c0,$fa,$ff
-                .byte $c0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
+digits6_5       .byte $e0,$aa,$bd
+                .byte $c0,$fa,$b5
+                .byte $c0,$fa,$bf
+                .byte $c0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
 
 digits6_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$eb
@@ -818,62 +823,62 @@ digits6_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
                 .byte $c0,$d5,$fa
 
-digits7_0       .byte $aa,$f5,$ff
-                .byte $ea,$d7,$ff
-                .byte $ff,$d5,$ff
-                .byte $bf,$f5,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
-                .byte $af,$fd,$ff
+digits7_0       .byte $aa,$d5,$81
+                .byte $fa,$d7,$81
+                .byte $ff,$d5,$81
+                .byte $bf,$f5,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
+                .byte $af,$fd,$81
 
-digits7_1       .byte $d4,$ea,$ff
-                .byte $d4,$af,$ff
-                .byte $fe,$ab,$ff
-                .byte $fe,$ea,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
-                .byte $de,$fa,$ff
+digits7_1       .byte $d4,$aa,$83
+                .byte $f4,$af,$83
+                .byte $fe,$ab,$83
+                .byte $fe,$ea,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
+                .byte $de,$fa,$83
 
-digits7_2       .byte $a8,$d5,$ff
-                .byte $a8,$df,$fe
-                .byte $fc,$d7,$fe
-                .byte $fc,$d5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
-                .byte $bc,$f5,$ff
+digits7_2       .byte $a8,$d5,$86
+                .byte $e8,$df,$86
+                .byte $fc,$d7,$86
+                .byte $fc,$d5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
+                .byte $bc,$f5,$87
 
-digits7_3       .byte $d0,$aa,$ff
-                .byte $d0,$be,$fd
-                .byte $f8,$af,$fd
-                .byte $f8,$ab,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
-                .byte $f8,$ea,$ff
+digits7_3       .byte $d0,$aa,$8d
+                .byte $d0,$bf,$8d
+                .byte $f8,$af,$8d
+                .byte $f8,$ab,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
+                .byte $f8,$ea,$8f
 
-digits7_4       .byte $a0,$d5,$fe
-                .byte $a0,$fd,$fa
-                .byte $f0,$df,$fa
-                .byte $f0,$d7,$fe
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
-                .byte $f0,$d5,$ff
+digits7_4       .byte $a0,$d5,$9a
+                .byte $a0,$ff,$9a
+                .byte $f0,$df,$9a
+                .byte $f0,$d7,$9e
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
+                .byte $f0,$d5,$9f
 
-digits7_5       .byte $c0,$aa,$fd
-                .byte $c0,$fa,$f5
-                .byte $e0,$bf,$f5
-                .byte $e0,$af,$fd
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
-                .byte $e0,$ab,$ff
+digits7_5       .byte $c0,$aa,$b5
+                .byte $c0,$fe,$b5
+                .byte $e0,$bf,$b5
+                .byte $e0,$af,$bd
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
+                .byte $e0,$ab,$bf
 
-digits7_6       .byte $80,$d5,$fa
-                .byte $80,$f5,$eb
+digits7_6       .byte $80,$d5,$ea
+                .byte $80,$fd,$eb
                 .byte $c0,$ff,$ea
                 .byte $c0,$df,$fa
                 .byte $c0,$d7,$fe
@@ -881,59 +886,59 @@ digits7_6       .byte $80,$d5,$fa
                 .byte $c0,$d7,$fe
                 .byte $c0,$d7,$fe
 
-digits8_0       .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
-                .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
+digits8_0       .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
+                .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
 
-digits8_1       .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
-                .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
+digits8_1       .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
+                .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
 
-digits8_2       .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
-                .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
+digits8_2       .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
+                .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
 
-digits8_3       .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
-                .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
+digits8_3       .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
+                .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
 
-digits8_4       .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
-                .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
+digits8_4       .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
+                .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
 
-digits8_5       .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
-                .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
+digits8_5       .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
+                .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
 
 digits8_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
@@ -944,59 +949,59 @@ digits8_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
                 .byte $c0,$d5,$fa
 
-digits9_0       .byte $ab,$f5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$d5,$ff
-                .byte $ff,$d5,$ff
-                .byte $ea,$d5,$ff
-                .byte $ab,$f5,$ff
+digits9_0       .byte $ab,$f5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$d5,$81
+                .byte $ff,$d5,$81
+                .byte $ea,$d5,$81
+                .byte $ab,$f5,$81
 
-digits9_1       .byte $d6,$ea,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$aa,$ff
-                .byte $fe,$ab,$ff
-                .byte $d4,$ab,$ff
-                .byte $d6,$ea,$ff
+digits9_1       .byte $d6,$ea,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$aa,$83
+                .byte $fe,$ab,$83
+                .byte $d4,$ab,$83
+                .byte $d6,$ea,$83
 
-digits9_2       .byte $ac,$d5,$ff
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$fe
-                .byte $fc,$d7,$fe
-                .byte $a8,$d7,$fe
-                .byte $ac,$d5,$ff
+digits9_2       .byte $ac,$d5,$87
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$86
+                .byte $fc,$d7,$86
+                .byte $a8,$d7,$86
+                .byte $ac,$d5,$87
 
-digits9_3       .byte $d8,$aa,$ff
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$fd
-                .byte $f8,$af,$fd
-                .byte $d0,$ae,$fd
-                .byte $d8,$aa,$ff
+digits9_3       .byte $d8,$aa,$8f
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8d
+                .byte $f8,$af,$8d
+                .byte $d0,$ae,$8d
+                .byte $d8,$aa,$8f
 
-digits9_4       .byte $b0,$d5,$fe
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fa
-                .byte $f0,$df,$fa
-                .byte $a0,$dd,$fa
-                .byte $b0,$d5,$fe
+digits9_4       .byte $b0,$d5,$9e
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9a
+                .byte $f0,$df,$9a
+                .byte $a0,$dd,$9a
+                .byte $b0,$d5,$9e
 
-digits9_5       .byte $e0,$aa,$fd
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$f5
-                .byte $e0,$bf,$f5
-                .byte $c0,$ba,$f5
-                .byte $e0,$aa,$fd
+digits9_5       .byte $e0,$aa,$bd
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$b5
+                .byte $e0,$bf,$b5
+                .byte $c0,$ba,$b5
+                .byte $e0,$aa,$bd
 
 digits9_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
@@ -1007,59 +1012,59 @@ digits9_6       .byte $c0,$d5,$fa
                 .byte $80,$f5,$ea
                 .byte $c0,$d5,$fa
 
-digitsX_0       .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
-                .byte $ff,$ff,$ff
+digitsX_0       .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
+                .byte $ff,$ff,$81
 
-digitsX_1       .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
-                .byte $fe,$ff,$ff
+digitsX_1       .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
+                .byte $fe,$ff,$83
 
-digitsX_2       .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
-                .byte $fc,$ff,$ff
+digitsX_2       .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
+                .byte $fc,$ff,$87
 
-digitsX_3       .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
-                .byte $f8,$ff,$ff
+digitsX_3       .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
+                .byte $f8,$ff,$8f
 
-digitsX_4       .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
-                .byte $f0,$ff,$ff
+digitsX_4       .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
+                .byte $f0,$ff,$9f
 
-digitsX_5       .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
-                .byte $e0,$ff,$ff
+digitsX_5       .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
+                .byte $e0,$ff,$bf
 
 digitsX_6       .byte $c0,$ff,$ff
                 .byte $c0,$ff,$ff
@@ -1069,99 +1074,6 @@ digitsX_6       .byte $c0,$ff,$ff
                 .byte $c0,$ff,$ff
                 .byte $c0,$ff,$ff
                 .byte $c0,$ff,$ff
-
-
-; digit_bits
-;                 .byte %00111100
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %00111100		; zero
-
-;                 .byte %00011000
-;                 .byte %00111000
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00111100		; one
-
-;                 .byte %00111100
-;                 .byte %01000110
-;                 .byte %00000110
-;                 .byte %00000110
-;                 .byte %00111100
-;                 .byte %01100000
-;                 .byte %01100000
-;                 .byte %01111100		; two
-
-;                 .byte %00111100
-;                 .byte %01000110
-;                 .byte %00000110
-;                 .byte %00001100
-;                 .byte %00001100
-;                 .byte %00000110
-;                 .byte %01000110
-;                 .byte %00111100		; three
-
-;                 .byte %00001100
-;                 .byte %00011100
-;                 .byte %00101100
-;                 .byte %01001100
-;                 .byte %01111100
-;                 .byte %00001100
-;                 .byte %00001100
-;                 .byte %00001100		; four
-
-;                 .byte %01111100
-;                 .byte %01100000
-;                 .byte %01100000
-;                 .byte %01111100
-;                 .byte %00000110
-;                 .byte %00000110
-;                 .byte %01000110
-;                 .byte %01111100		; five
-
-;                 .byte %00111100
-;                 .byte %01100010
-;                 .byte %01100000
-;                 .byte %01111100
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %00111100		; six
-
-;                 .byte %01111100
-;                 .byte %01000010
-;                 .byte %00000110
-;                 .byte %00001100
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00011000
-;                 .byte %00011000		; seven
-
-;                 .byte %00111100
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %00111100
-;                 .byte %00111100
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %00111100		; eight
-
-;                 .byte %00111100
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %01100110
-;                 .byte %00111110
-;                 .byte %00000110
-;                 .byte %01000110
-;                 .byte %00111100		; nine
-
 
                 ; .byte %........################........
                 ; .byte %....########........########....
@@ -1188,7 +1100,7 @@ digitsX_6       .byte $c0,$ff,$ff
                 ; .byte %........################........
                 ; .byte %....########....................
                 ; .byte %....########....................
-                ; .byte %....####################........		; two
+                ; .byte %....########################....		; two
 
                 ; .byte %........################........
                 ; .byte %....####............########....
@@ -1203,12 +1115,12 @@ digitsX_6       .byte $c0,$ff,$ff
                 ; .byte %............############........
                 ; .byte %........####....########........
                 ; .byte %....####........########........
-                ; .byte %....####################........
+                ; .byte %....########################....
                 ; .byte %................########........
                 ; .byte %................########........
                 ; .byte %................########........		; four
 
-                ; .byte %....####################........
+                ; .byte %....########################....
                 ; .byte %....########....................
                 ; .byte %....########....................
                 ; .byte %....####################........
@@ -1226,7 +1138,7 @@ digitsX_6       .byte $c0,$ff,$ff
                 ; .byte %....########........########....
                 ; .byte %........################........		; six
 
-                ; .byte %....####################........
+                ; .byte %....########################....
                 ; .byte %....####................####....
                 ; .byte %....................########....
                 ; .byte %................########........

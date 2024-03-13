@@ -30,6 +30,6 @@ fi
 
 cp obj/kaboom.bin $PROJ
 cp obj/kaboom.lst $PROJ
-cp project-kaboom.json $PROJ
+cp kaboom.rpw-project $PROJ
 
 #---------------------------------------
