@@ -3,6 +3,7 @@
     "syntax": "ca65"
   },
   "srcDir": "src",
+  "binDir": "obj",
   "modules": [
     {
       "src": "kaboom.s",

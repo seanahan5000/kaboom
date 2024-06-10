@@ -13,7 +13,6 @@
       "**/obj": true,
       ".gitignore": true
     },
-    "rpw65.syntax": "ca65",
     "rpw65.case.lowerCaseCompletions": true
   },
   "tasks": {

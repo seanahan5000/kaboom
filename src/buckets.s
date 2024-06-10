@@ -1,26 +1,81 @@
+; **** use T,M,B ? ***
 
-; NOTE: Buckets can move +/- 80 pixels, so fully erasing and
-;   then redrawing buckets is the same as worst case delta update.
+splash0_line0   =   hiresLine133
+splash0_line1   =   hiresLine134
+splash0_line2   =   hiresLine135
+splash0_line3   =   hiresLine136
+splash0_line4   =   hiresLine137
+splash0_line5   =   hiresLine138
+splash0_line6   =   hiresLine139
+splash0_line7   =   hiresLine140
+
+bucket0_line0   =   hiresLine141
+bucket0_line1   =   hiresLine142
+bucket0_line2   =   hiresLine143
+bucket0_line3   =   hiresLine144
+bucket0_line4   =   hiresLine145
+bucket0_line5   =   hiresLine146
+bucket0_line6   =   hiresLine147
+bucket0_line7   =   hiresLine148
+
+splash1_line0   =   hiresLine149
+splash1_line1   =   hiresLine150
+splash1_line2   =   hiresLine151
+splash1_line3   =   hiresLine152
+splash1_line4   =   hiresLine153
+splash1_line5   =   hiresLine154
+splash1_line6   =   hiresLine155
+splash1_line7   =   hiresLine156
+
+bucket1_line0   =   hiresLine157
+bucket1_line1   =   hiresLine158
+bucket1_line2   =   hiresLine159
+bucket1_line3   =   hiresLine160
+bucket1_line4   =   hiresLine161
+bucket1_line5   =   hiresLine162
+bucket1_line6   =   hiresLine163
+bucket1_line7   =   hiresLine164
+
+splash2_line0   =   hiresLine165
+splash2_line1   =   hiresLine166
+splash2_line2   =   hiresLine167
+splash2_line3   =   hiresLine168
+splash2_line4   =   hiresLine169
+splash2_line5   =   hiresLine170
+splash2_line6   =   hiresLine171
+splash2_line7   =   hiresLine172
+
+bucket2_line0   =   hiresLine173
+bucket2_line1   =   hiresLine174
+bucket2_line2   =   hiresLine175
+bucket2_line3   =   hiresLine176
+bucket2_line4   =   hiresLine177
+bucket2_line5   =   hiresLine178
+bucket2_line6   =   hiresLine179
+bucket2_line7   =   hiresLine180
 
 ;
 ; On entry:
-;   A: X position (0-139) *** minus width?
+;   bucket_xcol and bucket_xshift setup based on buckets_x * 2
 ;
-;   draw at X * 2
-;
-draw_buckets    lda buckets_x
-                asl
-                tax
-                lda div7,x
-                sta bucket_xcol
-                lda mod7,x
-                sta bucket_xshift
+draw_buckets
+                ;*** tie this to wave/speed? ***
+                ;*** force bucket 1 if no splash
+                ldx splash_frame
+                beq @1
+                dex
+@1              stx splash_frame
+                txa
+                lsr
+                lsr
+                sta temp                ;***
 
                 lda splash_bucket
                 asl
                 asl
 ;               clc
-                adc splash_frame
+                ; adc splash_frame  ***
+                adc temp                ;***
                 asl
                 asl
                 asl
@@ -38,24 +93,411 @@ draw_buckets    lda buckets_x
                 adc #bucketByteWidth
 @mod1           jsr $ffff
 
-                lda bucket_count
-                asl
-                asl
-                asl
-;               clc
-                adc bucket_xshift
-                tay
-                ; -8 to compensate for 1-based bucket_count
-                lda bucket_procs_lo-8,y
+                ldy bucket_count
+                lda bucket_procs_lo-1,y
                 sta @mod2+1
-                lda bucket_procs_hi-8,y
+                lda bucket_procs_hi-1,y
                 sta @mod2+2
-                ldx bucket_offsets-8,y
+                ldy bucket_xshift
+                ldx bucket_offsets,y
                 ldy bucket_xcol
                 tya
                 clc
-                adc #bucketByteWidth
+                adc #bucketByteWidth-1
 @mod2           jmp $ffff
+
+bucket_procs_lo .byte <draw_1bucket
+                .byte <draw_2buckets
+                .byte <draw_3buckets
+
+bucket_procs_hi .byte >draw_1bucket
+                .byte >draw_2buckets
+                .byte >draw_3buckets
+
+draw_3buckets   sta @mod+1
+                ; set_page
+@1              lda bucket_bits,x
+                sta bucket0_line0,y
+                sta bucket1_line0,y
+                sta bucket2_line0,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line2,y
+                sta bucket1_line2,y
+                sta bucket2_line2,y
+                sta bucket0_line3,y
+                sta bucket1_line3,y
+                sta bucket2_line3,y
+                sta bucket0_line4,y
+                sta bucket1_line4,y
+                sta bucket2_line4,y
+                sta bucket0_line5,y
+                sta bucket1_line5,y
+                sta bucket2_line5,y
+                sta bucket0_line6,y
+                sta bucket1_line6,y
+                sta bucket2_line6,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line7,y
+                sta bucket1_line7,y
+                sta bucket2_line7,y
+                inx
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+
+                lda bucket_bits,x
+                eor bucket0_line0,y
+                sta bucket0_line0,y
+                lda bucket_bits,x
+                eor bucket1_line0,y
+                sta bucket1_line0,y
+                lda bucket_bits,x
+                eor bucket2_line0,y
+                sta bucket2_line0,y
+                inx
+                txa
+                pha
+                lda bucket_bits,x
+                tax
+;               txa
+                eor bucket0_line2,y
+                sta bucket0_line2,y
+                txa
+                eor bucket1_line2,y
+                sta bucket1_line2,y
+                txa
+                eor bucket2_line2,y
+                sta bucket2_line2,y
+                txa
+                eor bucket0_line3,y
+                sta bucket0_line3,y
+                txa
+                eor bucket1_line3,y
+                sta bucket1_line3,y
+                txa
+                eor bucket2_line3,y
+                sta bucket2_line3,y
+                txa
+                eor bucket0_line4,y
+                sta bucket0_line4,y
+                txa
+                eor bucket1_line4,y
+                sta bucket1_line4,y
+                txa
+                eor bucket2_line4,y
+                sta bucket2_line4,y
+                txa
+                eor bucket0_line5,y
+                sta bucket0_line5,y
+                txa
+                eor bucket1_line5,y
+                sta bucket1_line5,y
+                txa
+                eor bucket2_line5,y
+                sta bucket2_line5,y
+                txa
+                eor bucket0_line6,y
+                sta bucket0_line6,y
+                txa
+                eor bucket1_line6,y
+                sta bucket1_line6,y
+                txa
+                eor bucket2_line6,y
+                sta bucket2_line6,y
+                pla
+                tax
+                inx
+                lda bucket_bits,x
+                eor bucket0_line7,y
+                sta bucket0_line7,y
+                lda bucket_bits,x
+                eor bucket1_line7,y
+                sta bucket1_line7,y
+                lda bucket_bits,x
+                eor bucket2_line7,y
+                sta bucket2_line7,y
+                inx
+                iny
+                rts
+
+draw_2buckets   sta @mod+1
+                ; set_page
+@1              lda bucket_bits,x
+                sta bucket0_line0,y
+                sta bucket1_line0,y
+                sta clip_buffer,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line2,y
+                sta bucket1_line2,y
+                sta clip_buffer,y
+                sta bucket0_line3,y
+                sta bucket1_line3,y
+                sta clip_buffer,y
+                sta bucket0_line4,y
+                sta bucket1_line4,y
+                sta clip_buffer,y
+                sta bucket0_line5,y
+                sta bucket1_line5,y
+                sta clip_buffer,y
+                sta bucket0_line6,y
+                sta bucket1_line6,y
+                sta clip_buffer,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line7,y
+                sta bucket1_line7,y
+                sta clip_buffer,y
+                inx
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+
+                lda bucket_bits,x
+                eor bucket0_line0,y
+                sta bucket0_line0,y
+                lda bucket_bits,x
+                eor bucket1_line0,y
+                sta bucket1_line0,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                inx
+                txa
+                pha
+                lda bucket_bits,x
+                tax
+;               txa
+                eor bucket0_line2,y
+                sta bucket0_line2,y
+                txa
+                eor bucket1_line2,y
+                sta bucket1_line2,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line3,y
+                sta bucket0_line3,y
+                txa
+                eor bucket1_line3,y
+                sta bucket1_line3,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line4,y
+                sta bucket0_line4,y
+                txa
+                eor bucket1_line4,y
+                sta bucket1_line4,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line5,y
+                sta bucket0_line5,y
+                txa
+                eor bucket1_line5,y
+                sta bucket1_line5,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line6,y
+                sta bucket0_line6,y
+                txa
+                eor bucket1_line6,y
+                sta bucket1_line6,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                pla
+                tax
+                inx
+                lda bucket_bits,x
+                eor bucket0_line7,y
+                sta bucket0_line7,y
+                lda bucket_bits,x
+                eor bucket1_line7,y
+                sta bucket1_line7,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                inx
+                iny
+                rts
+
+draw_1bucket    sta @mod+1
+                ; set_page
+@1              lda bucket_bits,x
+                sta bucket0_line0,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line2,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                sta bucket0_line3,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                sta bucket0_line4,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                sta bucket0_line5,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                sta bucket0_line6,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                inx
+                lda bucket_bits,x
+                sta bucket0_line7,y
+                sta clip_buffer,y
+                sta clip_buffer,y
+                inx
+                iny
+@mod            cpy #$ff
+                bcc @1
+                ; check_page
+
+                lda bucket_bits,x
+                eor bucket0_line0,y
+                sta bucket0_line0,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                inx
+                txa
+                pha
+                lda bucket_bits,x
+                tax
+;               txa
+                eor bucket0_line2,y
+                sta bucket0_line2,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line3,y
+                sta bucket0_line3,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line4,y
+                sta bucket0_line4,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line5,y
+                sta bucket0_line5,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor bucket0_line6,y
+                sta bucket0_line6,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                txa
+                eor clip_buffer,y
+                sta clip_buffer,y
+                pla
+                tax
+                inx
+                lda bucket_bits,x
+                eor bucket0_line7,y
+                sta bucket0_line7,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                lda bucket_bits,x
+                eor clip_buffer,y
+                sta clip_buffer,y
+                inx
+                iny
+                rts
+
+bucket_offsets  .byte bucket_shift0-bucket_bits
+                .byte bucket_shift1-bucket_bits
+                .byte bucket_shift2-bucket_bits
+                .byte bucket_shift3-bucket_bits
+                .byte bucket_shift4-bucket_bits
+                .byte bucket_shift5-bucket_bits
+                .byte bucket_shift6-bucket_bits
+
+bucket_bits
+bucket_shift0   .byte $56,$25,$55
+                .byte $2a,$29,$2a
+                .byte $55,$4a,$55
+                .byte $2a,$52,$2a
+                .byte $2d,$34,$35
+                .byte $00,$00,$00
+
+bucket_shift1   .byte $2d,$4b,$2b
+                .byte $55,$52,$55
+                .byte $2a,$14,$2a
+                .byte $55,$25,$55
+                .byte $5a,$69,$6a
+                .byte $00,$00,$00
+
+bucket_shift2   .byte $5a,$16,$56
+                .byte $2a,$25,$2a
+                .byte $55,$29,$55
+                .byte $2a,$4a,$2a
+                .byte $35,$52,$55
+                .byte $00,$00,$00
+
+bucket_shift3   .byte $35,$2d,$2d
+                .byte $55,$4a,$55
+                .byte $2a,$52,$2a
+                .byte $55,$14,$55
+                .byte $6a,$25,$2a
+                .byte $00,$01,$01
+
+bucket_shift4   .byte $6a,$5a,$5a
+                .byte $2a,$14,$2a
+                .byte $55,$25,$55
+                .byte $2a,$29,$2a
+                .byte $55,$4a,$55
+                .byte $00,$03,$03
+
+bucket_shift5   .byte $55,$35,$35
+                .byte $55,$29,$55
+                .byte $2a,$4a,$2a
+                .byte $55,$52,$55
+                .byte $2a,$14,$2a
+                .byte $01,$07,$07
+
+bucket_shift6   .byte $2a,$6a,$6a
+                .byte $2b,$52,$2a
+                .byte $55,$14,$55
+                .byte $2a,$25,$2a
+                .byte $55,$29,$55
+                .byte $03,$0f,$0f
 
 erase_buckets   ldy bucket_xcol
                 ldx #6
@@ -65,9 +507,9 @@ erase_buckets   ldy bucket_xcol
                 bcc @1
                 lda #$55
                 ; set_page
-@1              sta bucket0_line0,y     ;136
-                sta bucket1_line0,y     ;152
-                sta bucket2_line0,y     ;168
+@1              sta bucket0_line0,y
+                sta bucket1_line0,y
+                sta bucket2_line0,y
                 sta bucket0_line1,y
                 sta bucket1_line1,y
                 sta bucket2_line1,y
@@ -86,20 +528,21 @@ erase_buckets   ldy bucket_xcol
                 sta bucket0_line6,y
                 sta bucket1_line6,y
                 sta bucket2_line6,y
-                sta bucket0_line7,y     ;143
-                sta bucket1_line7,y     ;159
-                sta bucket2_line7,y     ;175
+                sta bucket0_line7,y
+                sta bucket1_line7,y
+                sta bucket2_line7,y
                 eor #$7f
                 iny
                 dex
                 bne @1
                 ; check_page
+                ; fall through
 
 erase_splash_cols
                 lda splash_bucket
                 sta temp
                 ldy bucket_xcol
-                ldx #6
+                ldx #6                  ;*** will change to 5
                 tya
                 lsr
                 lda #$2a
@@ -160,203 +603,6 @@ erase_splash2_cols
                 bne @1
                 ; check_page
                 rts
-
-; **** use T,M,B ? ***
-
-splash0_line0   =   hiresLine133
-splash0_line1   =   hiresLine134
-splash0_line2   =   hiresLine135
-splash0_line3   =   hiresLine136
-splash0_line4   =   hiresLine137
-splash0_line5   =   hiresLine138
-splash0_line6   =   hiresLine139
-splash0_line7   =   hiresLine140
-
-bucket0_line0   =   hiresLine141
-bucket0_line1   =   hiresLine142
-bucket0_line2   =   hiresLine143
-bucket0_line3   =   hiresLine144
-bucket0_line4   =   hiresLine145
-bucket0_line5   =   hiresLine146
-bucket0_line6   =   hiresLine147
-bucket0_line7   =   hiresLine148
-
-splash1_line0   =   hiresLine149
-splash1_line1   =   hiresLine150
-splash1_line2   =   hiresLine151
-splash1_line3   =   hiresLine152
-splash1_line4   =   hiresLine153
-splash1_line5   =   hiresLine154
-splash1_line6   =   hiresLine155
-splash1_line7   =   hiresLine156
-
-bucket1_line0   =   hiresLine157
-bucket1_line1   =   hiresLine158
-bucket1_line2   =   hiresLine159
-bucket1_line3   =   hiresLine160
-bucket1_line4   =   hiresLine161
-bucket1_line5   =   hiresLine162
-bucket1_line6   =   hiresLine163
-bucket1_line7   =   hiresLine164
-
-splash2_line0   =   hiresLine165
-splash2_line1   =   hiresLine166
-splash2_line2   =   hiresLine167
-splash2_line3   =   hiresLine168
-splash2_line4   =   hiresLine169
-splash2_line5   =   hiresLine170
-splash2_line6   =   hiresLine171
-splash2_line7   =   hiresLine172
-
-bucket2_line0   =   hiresLine173
-bucket2_line1   =   hiresLine174
-bucket2_line2   =   hiresLine175
-bucket2_line3   =   hiresLine176
-bucket2_line4   =   hiresLine177
-bucket2_line5   =   hiresLine178
-bucket2_line6   =   hiresLine179
-bucket2_line7   =   hiresLine180
-
-.macro buckets3 _bits
-                sta @mod+1
-                ; set_page
-                clc
-@1              lda _bits+0,x
-                sta bucket0_line0,y     ;136
-                sta bucket1_line0,y     ;152
-                sta bucket2_line0,y     ;168
-                lda _bits+1,x
-                sta bucket0_line1,y
-                sta bucket1_line1,y
-                sta bucket2_line1,y
-                lda _bits+2,x
-                sta bucket0_line2,y
-                sta bucket1_line2,y
-                sta bucket2_line2,y
-                lda _bits+3,x
-                sta bucket0_line3,y
-                sta bucket1_line3,y
-                sta bucket2_line3,y
-                lda _bits+4,x
-                sta bucket0_line4,y
-                sta bucket1_line4,y
-                sta bucket2_line4,y
-                lda _bits+5,x
-                sta bucket0_line5,y
-                sta bucket1_line5,y
-                sta bucket2_line5,y
-                lda _bits+6,x
-                sta bucket0_line6,y
-                sta bucket1_line6,y
-                sta bucket2_line6,y
-                lda _bits+7,x
-                sta bucket0_line7,y     ;143
-                sta bucket1_line7,y     ;159
-                sta bucket2_line7,y     ;175
-                txa
-;               clc
-                adc #8
-                tax
-                iny
-@mod            cpy #$ff
-                bcc @1
-                ; check_page
-                rts
-.endmacro
-
-.macro buckets2 _bits
-                sta @mod+1
-                ; set_page
-                clc
-@1              lda _bits+0,x
-                sta bucket0_line0,y     ;136
-                sta bucket1_line0,y     ;152
-                sta bucket1_line0,y     ;152
-                lda _bits+1,x
-                sta bucket0_line1,y
-                sta bucket1_line1,y
-                sta bucket1_line1,y
-                lda _bits+2,x
-                sta bucket0_line2,y
-                sta bucket1_line2,y
-                sta bucket1_line2,y
-                lda _bits+3,x
-                sta bucket0_line3,y
-                sta bucket1_line3,y
-                sta bucket1_line3,y
-                lda _bits+4,x
-                sta bucket0_line4,y
-                sta bucket1_line4,y
-                sta bucket1_line4,y
-                lda _bits+5,x
-                sta bucket0_line5,y
-                sta bucket1_line5,y
-                sta bucket1_line5,y
-                lda _bits+6,x
-                sta bucket0_line6,y
-                sta bucket1_line6,y
-                sta bucket1_line6,y
-                lda _bits+7,x
-                sta bucket0_line7,y     ;143
-                sta bucket1_line7,y     ;159
-                sta bucket1_line7,y     ;159
-                txa
-;               clc
-                adc #8
-                tax
-                iny
-@mod            cpy #$ff
-                bcc @1
-                ; check_page
-                rts
-.endmacro
-
-.macro buckets1 _bits
-                sta @mod+1
-                ; set_page
-                clc
-@1              lda _bits+0,x
-                sta bucket0_line0,y     ;136
-                sta bucket0_line0,y     ;136
-                sta bucket0_line0,y     ;136
-                lda _bits+1,x
-                sta bucket0_line1,y
-                sta bucket0_line1,y
-                sta bucket0_line1,y
-                lda _bits+2,x
-                sta bucket0_line2,y
-                sta bucket0_line2,y
-                sta bucket0_line2,y
-                lda _bits+3,x
-                sta bucket0_line3,y
-                sta bucket0_line3,y
-                sta bucket0_line3,y
-                lda _bits+4,x
-                sta bucket0_line4,y
-                sta bucket0_line4,y
-                sta bucket0_line4,y
-                lda _bits+5,x
-                sta bucket0_line5,y
-                sta bucket0_line5,y
-                sta bucket0_line5,y
-                lda _bits+6,x
-                sta bucket0_line6,y
-                sta bucket0_line6,y
-                sta bucket0_line6,y
-                lda _bits+7,x
-                sta bucket0_line7,y     ;143
-                sta bucket0_line7,y     ;143
-                sta bucket0_line7,y     ;143
-                txa
-;               clc
-                adc #8
-                tax
-                iny
-@mod            cpy #$ff
-                bcc @1
-                ; check_page
-                rts
-.endmacro
 
 .macro splash_top _bits
                 sta @mod+1
@@ -450,67 +696,6 @@ bucket2_line7   =   hiresLine180
                 ; check_page
                 rts
 .endmacro
-
-bucket_procs_lo .byte <draw_buckets1_a  ; buckets1_0
-                .byte <draw_buckets1_a  ; buckets1_1
-                .byte <draw_buckets1_a  ; buckets1_2
-                .byte <draw_buckets1_a  ; buckets1_3
-                .byte <draw_buckets1_a  ; buckets1_4
-                .byte <draw_buckets1_b  ; buckets1_5
-                .byte <draw_buckets1_b  ; buckets1_6
-                .byte 0
-                .byte <draw_buckets2_a  ; buckets2_0
-                .byte <draw_buckets2_a  ; buckets2_1
-                .byte <draw_buckets2_a  ; buckets2_2
-                .byte <draw_buckets2_a  ; buckets2_3
-                .byte <draw_buckets2_a  ; buckets2_4
-                .byte <draw_buckets2_b  ; buckets2_5
-                .byte <draw_buckets2_b  ; buckets2_6
-                .byte 0
-                .byte <draw_buckets3_a  ; buckets3_0
-                .byte <draw_buckets3_a  ; buckets3_1
-                .byte <draw_buckets3_a  ; buckets3_2
-                .byte <draw_buckets3_a  ; buckets3_3
-                .byte <draw_buckets3_a  ; buckets3_4
-                .byte <draw_buckets3_b  ; buckets3_5
-                .byte <draw_buckets3_b  ; buckets3_6
-;               .byte 0
-
-bucket_procs_hi .byte >draw_buckets1_a  ; buckets1_0
-                .byte >draw_buckets1_a  ; buckets1_1
-                .byte >draw_buckets1_a  ; buckets1_2
-                .byte >draw_buckets1_a  ; buckets1_3
-                .byte >draw_buckets1_a  ; buckets1_4
-                .byte >draw_buckets1_b  ; buckets1_5
-                .byte >draw_buckets1_b  ; buckets1_6
-                .byte 0
-                .byte >draw_buckets2_a  ; buckets2_0
-                .byte >draw_buckets2_a  ; buckets2_1
-                .byte >draw_buckets2_a  ; buckets2_2
-                .byte >draw_buckets2_a  ; buckets2_3
-                .byte >draw_buckets2_a  ; buckets2_4
-                .byte >draw_buckets2_b  ; buckets2_5
-                .byte >draw_buckets2_b  ; buckets2_6
-                .byte 0
-                .byte >draw_buckets3_a  ; buckets3_0
-                .byte >draw_buckets3_a  ; buckets3_1
-                .byte >draw_buckets3_a  ; buckets3_2
-                .byte >draw_buckets3_a  ; buckets3_3
-                .byte >draw_buckets3_a  ; buckets3_4
-                .byte >draw_buckets3_b  ; buckets3_5
-                .byte >draw_buckets3_b  ; buckets3_6
-;               .byte 0
-
-bucket_offsets  .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
-                .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
-                .byte 0*48,1*48,2*48,3*48,4*48,0*48,1*48,0
-
-draw_buckets3_a buckets3 bucket_set_a
-draw_buckets3_b buckets3 bucket_set_b
-draw_buckets2_a buckets2 bucket_set_a
-draw_buckets2_b buckets2 bucket_set_b
-draw_buckets1_a buckets1 bucket_set_a
-draw_buckets1_b buckets1 bucket_set_b
 
 splash_procs_lo .byte <draw_splash_a0   ; splash_f0_0 (top)
                 .byte <draw_splash_a0   ; splash_f0_1
@@ -740,53 +925,15 @@ draw_splash_d2  splash_bot splash_set_d
 draw_splash_e2  splash_bot splash_set_e
 
                 .align 256
-bucket_set_a
-bucket_0        .byte $56,$2a,$25,$25,$25,$25,$25,$55
-                .byte $2a,$55,$29,$29,$29,$29,$29,$2a
-                .byte $55,$2a,$4a,$4a,$4a,$4a,$4a,$55
-                .byte $2a,$55,$52,$52,$52,$52,$52,$2a
-                .byte $2d,$2a,$34,$34,$34,$34,$34,$35
-                .byte $55,$55,$55,$55,$55,$55,$55,$55
-
-bucket_1        .byte $2d,$55,$4b,$4b,$4b,$4b,$4b,$2b
-                .byte $55,$2a,$52,$52,$52,$52,$52,$55
-                .byte $2a,$55,$14,$14,$14,$14,$14,$2a
-                .byte $55,$2a,$25,$25,$25,$25,$25,$55
-                .byte $5a,$55,$69,$69,$69,$69,$69,$6a
-                .byte $2a,$2a,$2a,$2a,$2a,$2a,$2a,$2a
-
-bucket_2        .byte $5a,$2a,$16,$16,$16,$16,$16,$56
-                .byte $2a,$55,$25,$25,$25,$25,$25,$2a
-                .byte $55,$2a,$29,$29,$29,$29,$29,$55
-                .byte $2a,$55,$4a,$4a,$4a,$4a,$4a,$2a
-                .byte $35,$2a,$52,$52,$52,$52,$52,$55
-                .byte $55,$55,$55,$55,$55,$55,$55,$55
-
-bucket_3        .byte $35,$55,$2d,$2d,$2d,$2d,$2d,$2d
-                .byte $55,$2a,$4a,$4a,$4a,$4a,$4a,$55
-                .byte $2a,$55,$52,$52,$52,$52,$52,$2a
-                .byte $55,$2a,$14,$14,$14,$14,$14,$55
-                .byte $6a,$55,$25,$25,$25,$25,$25,$2a
-                .byte $2a,$2a,$2b,$2b,$2b,$2b,$2b,$2b
-
-bucket_4        .byte $6a,$2a,$5a,$5a,$5a,$5a,$5a,$5a
-                .byte $2a,$55,$14,$14,$14,$14,$14,$2a
-                .byte $55,$2a,$25,$25,$25,$25,$25,$55
-                .byte $2a,$55,$29,$29,$29,$29,$29,$2a
-                .byte $55,$2a,$4a,$4a,$4a,$4a,$4a,$55
-                .byte $55,$55,$56,$56,$56,$56,$56,$56
-
-                .align 256
-bucket_set_b
 splash_set_a    ; *** split/move this ***
-bucket_5        .byte $55,$55,$35,$35,$35,$35,$35,$35
+xxx_bucket_5    .byte $55,$55,$35,$35,$35,$35,$35,$35 ;***
                 .byte $55,$2a,$29,$29,$29,$29,$29,$55
                 .byte $2a,$55,$4a,$4a,$4a,$4a,$4a,$2a
                 .byte $55,$2a,$52,$52,$52,$52,$52,$55
                 .byte $2a,$55,$14,$14,$14,$14,$14,$2a
                 .byte $2b,$2a,$2d,$2d,$2d,$2d,$2d,$2d
 
-bucket_6        .byte $2a,$2a,$6a,$6a,$6a,$6a,$6a,$6a
+xxx_bucket_6    .byte $2a,$2a,$6a,$6a,$6a,$6a,$6a,$6a ;***
                 .byte $2b,$55,$52,$52,$52,$52,$52,$2a
                 .byte $55,$2a,$14,$14,$14,$14,$14,$55
                 .byte $2a,$55,$25,$25,$25,$25,$25,$2a

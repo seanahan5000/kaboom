@@ -2,45 +2,87 @@
 ; Design notes:
 ;   - Algorithms taken from disassembled VCS Kaboom!
 ;   - Graphics taken from VCS and made to match as closely as possible
-;   - Goal is to run at a solid 60fps (1023000 / 60 = 17050 cycles per frame)
+;   - Goal is to run at a solid 60fps (1023000 / 60 ~= 17050 cycles per frame)
 ;   - All drawing should be as fast a possible but limited to worst case
 ;       - Want frame rate to be stable
 ;
 
 ; Timing:
-;   Paddle          2850
-;   Score            775
-;   Bomber          2020
-;   Bombs           4270
-;   Bucket Erase    1100
-;   Bucket Draw     1655
-;   --------------------
-;   Total          12670
+
+;   VBlank           4550 ( 70 * 65)
+;
+;   Active Top       2600 ( 40 * 65)
+;   Active Center    9230 (142 * 65)
+;   Active Bottom     650 ( 10 * 65)
+;
+;   VBlank+Bottom    5200 ((70 + 10) * 65)
+;
+;   Frame Total     17030 (262 * 65)
+
+;   Update score      775
+;   Erase bomber      574
+;   Erase top bomb    270.
+;   Draw bomber      1088
+;   Draw top bomb     890.
+;   Update bombs     4080.
+;   Erase buckets    1100
+;   Draw buckets     1552.
+;   Read paddle      2850
+;   ---------------------
+;   Total           12292? (13550. measured)
 
 ; TODO
-;   * fix bomb phase 0 cycle spike
-;       * add extra clipping
 ;   - flipped bombs
 ;   - bucket splash animation
-;   - bucket/bomb hit detection
 ;   - bomb exposion sequence
-;   - bomber holding bomb
 ;   - bomber smile/frown
 ;   - logo/copyright animation
-;   - "vaporlock" sync
-;   ? small/difficult buckets/splashes (unlikely)
 
-; *** narrower bomber?
-; *** reduce bomber erase by wave
-; *** reduce bomb overdraw by wave
+; *** bomb not dropping in right-most column
+
 ; *** match bomber start position to VCS
-; *** figure out bomb dx spacing
-    ; *** update bombs top to bottom, if possible
-; *** add white hilite in buckets
+; *** add white hilite in buckets?
+;   *** (requires drawing change/cycles)
 ; *** shorten bucket top line
 ; *** splash could be trimmed down to 42 bytes (6*7)
 ; *** could score shift6 be removed?
 ; *** make logo/copyright white? add rainbow?
+
+; *** bomb hits bucket +0
+; *** bomb hidden      +1
+; *** splash frame 3   +2
+; *** splash frame 3   +3
+; *** splash frame 3   +4
+; *** splash frame 3   +5
+; *** splash frame 2   +6
+; *** splash frame 2   +7
+; *** splash frame 2   +8
+; *** splash frame 2   +9
+; *** splash frame 1   +10
+; *** splash frame 1   +11
+; *** splash frame 1   +12
+; *** splash frame 1   +13 ?
+
+; *** pre-wave shows bomber holding bomb
+
+; *** bombs visible 2 empty lines below it
+; *** next frame, explosion starts
+; *** small, medium, large explosion
+; *** 4 frames of color cycle, before next frame
+; *** no delay from explosion to explosion
+; *** 2 frames of each screen color cycle
+; *** 16 cycles (32 frames)
+
+; *** fuse hit counts as bucket hit
+; *** buckets move during bomb explosions
+; *** bomber only smiles during explosion/flashing
+; *** bombs drop smoothly from bomber's hands
+; *** bomb not in his hands until ready to drop
+; *** bomb is misaligned left/right half the time
+; *** every other wave, bombs fall half as often
+    ; *** (will throw off fixed cycle timing)
+    ; *** (maybe just hide every other bomb?)
+; *** splash *does* count as bomb hit!
 
 .feature labels_without_colons
 ; .feature bracket_as_indirect
@@ -64,14 +106,22 @@ bottomHeight    =   10
 ; *** won't be needed if background filled with $FF ***
 scoreLeft       =   75
 
-bombsTop        =   topHeight
-bombsBottom     =   bombsTop+centerHeight
+bomb0Top        =   28
+bombPhaseDy     =   18
+bombsTop        =   bomb0Top+bombPhaseDy
+bombsBottom     =   topHeight+centerHeight
+bombMaxDy       =   4
 
-bomberMinX      =   5
+bomberMinX      =   7
 bomberMaxX      =   125                 ; inclusive
 
 bucketsMinX     =   3
 bucketsMaxX     =   121                 ; inclusive
+
+bucketTopY      =   141
+bucketMidY      =   157
+bucketBotY      =   173
+bucketHeight    =   8
 
 bucketByteWidth =   6
 
@@ -79,14 +129,16 @@ logoLeft        =   13
 logoWidth       =   15
 logoHeight      =   16
 
+vaporlockBlack  =   $80
+
 temp            :=  $00
 offset          :=  $01
 linenum         :=  $02
-temp_xcol       :=  $03
-temp_xshift     :=  $04
+; temp_xcol       :=  $03
+; temp_xshift     :=  $04
 
 vblank_count    :=  $10
-game_wave       :=  $11
+game_wave       :=  $11                 ; max 7 (TODO: cap later)
 bucket_count    :=  $12
 buckets_x       :=  $13
 bomber_x        :=  $14
@@ -96,7 +148,9 @@ score           :=  $17                 ; $17,$18,$19
 
 bucket_xcol     :=  $1A
 bucket_xshift   :=  $1B
-logo_offset     :=  $1C
+hit_xcol        :=  $1C
+hit_xshift      :=  $1D
+logo_offset     :=  $1E
 
 screenl         :=  $24
 screenh         :=  $25
@@ -118,11 +172,11 @@ new_digits      :=  $8a                 ; $8a,$8b,$8c,$8d,$8e,$8f
 ; bombs variables
 bomb_phase      :=  $90
 bomb_dy         :=  $91
-bomb_index      :=  $92                 ;*** temp counter
+bomb_index      :=  $92
 start_line      :=  $93
 end_line        :=  $94
-temp_ptr        :=  $95
-temp_ptr_h      :=  $96
+bomb_ptr        :=  $95
+bomb_ptr_h      :=  $96
 
 ; bomb code generation $a0-$a8
 
@@ -171,6 +225,11 @@ kaboom
                 sta graphics
 
                 jsr init_bombs          ;***
+                ; *** init bomb_columns and bomb_frames
+                lda #0
+                sta bomb_frames+0
+                lda #2
+                sta bomb_columns+0
 
 ; intialize digits buffer to "no digits"
                 ldx #5
@@ -185,18 +244,16 @@ kaboom
                 adc #1
                 sta bomb_dy
 
-                lda #0
+                lda #bombPhaseDy
+                sec
+                sbc bomb_dy
                 sta bomb_phase
 
-                lda #0                  ;***
+                lda #0
                 sta splash_bucket
-                lda #0                  ;***
                 sta splash_frame
 
 game_loop       jsr draw_score
-                ; jsr erase_buckets     ;***
-                jsr draw_bombs
-                jsr update_bombs        ;*** move later
 
                 ; jsr advance_logo        ;***
                 ; *** pause on logo_offset == 0 and (logoHeight/2)*logoWidth
@@ -205,12 +262,15 @@ game_loop       jsr draw_score
                 lda vblank_count
                 and #$0f
                 bne @1
-                jsr random
+                jsr random              ;*** always pay for this ***
                 bcs @1
                 lda bomber_dir
                 eor #$ff
                 sta bomber_dir
 @1
+                jsr erase_bomber
+                jsr erase_top_bomb
+
                 ; move bomber by +/- game_wave+1
                 sec
                 lda game_wave
@@ -223,23 +283,26 @@ bomber_left     eor #$ff
                 cmp #bomberMinX+1
                 bcc @1
                 cmp #$f0
-                bcc @2
+                bcc bomber_cmn
 @1              ldx #$00
                 stx bomber_dir
                 lda #bomberMinX
-@2              sta bomber_x
-                jsr move_bomber_left
-                jmp buckets
+                bpl bomber_cmn          ; always
 
 bomber_right    adc bomber_x
                 cmp #bomberMaxX
-                bcc @1
+                bcc bomber_cmn
                 ldx #$ff
                 stx bomber_dir
                 lda #bomberMaxX
-@1              sta bomber_x
-                jsr move_bomber_right
+bomber_cmn      sta bomber_x
+                ;***lda bomber_x
 
+                jsr draw_bomber
+                jsr update_bombs        ;*** move later
+
+; TODO: should paddle range be centered on screen?
+; TODO: can read_paddle be faster if end of range never needed?
 buckets         ldx #0
                 jsr read_paddle
                 tya
@@ -262,11 +325,27 @@ buckets_left    sec
                 bcs buckets_cmn
                 lda #bucketsMinX
 buckets_cmn     sta buckets_x
-                jsr erase_buckets       ;***
-                jsr draw_buckets
                 inc vblank_count
 
-; TODO: "vaporlock" sync here
+; Sync to line just before CallaVision logo using
+;   vaporlock method.  Note that 5 matches of magic
+;   value must be seen in order to distinguish active
+;   scan matches from hsync and vsync.
+                lda #vaporlockBlack
+@1              cmp $c050               ; 4
+                bne @1                  ; 2/3
+                nop                     ; 2
+                cmp $c050               ; 4
+                bne @1                  ; 2/3
+                nop                     ; 2
+                cmp $c050               ; 4
+                bne @1                  ; 2/3
+                nop                     ; 2
+                cmp $c050               ; 4
+                bne @1                  ; 2/3
+                nop                     ; 2
+                cmp $c050               ; 4
+                bne @1                  ; 2/3
 
                 jmp game_loop
 
@@ -311,7 +390,7 @@ fill_screen
 
 ; fill the first line with $80 black, for "vaporlock" detection,
 ;   and the rest with $00 black
-                lda #$80                ; "vaporlock" black
+                lda #vaporlockBlack
 @5              ldy hires_table_lo,x
                 sty screenl
                 ldy hires_table_hi,x
@@ -418,17 +497,17 @@ read_paddle     lda $c070               ; trigger paddles
                 nop                     ; compensate for 1st count
                 nop
 @1              lda $c064,x             ; 4  count Y-reg every
-                bpl @4                  ; 2    12 usec [actually 11]
+                bpl @2                  ; 2    12 usec [actually 11]
                 iny                     ; 2
                 bne @1                  ; 3  exit at 255 max
                 dey
                 rts
-@4              sty temp                ; 3
+@2              sty temp                ; 3
 @3              lda $c064,x             ; 4
                 nop                     ; 2 bpl not taken
                 iny                     ; 2
                 bne @3                  ; 3/2
-@5              ldy temp                ; 3
+                ldy temp                ; 3
                 rts
 
 ;---------------------------------------
