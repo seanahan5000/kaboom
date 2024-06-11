@@ -21,19 +21,18 @@
 
 ;   Update score      775
 ;   Erase bomber      574
-;   Erase top bomb    270.
+;   Erase top bomb    270
 ;   Draw bomber      1088
-;   Draw top bomb     890.
-;   Update bombs     4080.
-;   Erase buckets    1100
-;   Draw buckets     1552.
+;   Draw top bomb     890
+;   Update bombs     4080
+;   Erase buckets    1052
+;   Draw buckets     1435
 ;   Read paddle      2850
 ;   ---------------------
-;   Total           12292? (13550. measured)
+;   Total           13014 (13500 measured)
 
 ; TODO
 ;   - flipped bombs
-;   - bucket splash animation
 ;   - bomb exposion sequence
 ;   - bomber smile/frown
 ;   - logo/copyright animation
@@ -43,8 +42,6 @@
 ; *** match bomber start position to VCS
 ; *** add white hilite in buckets?
 ;   *** (requires drawing change/cycles)
-; *** shorten bucket top line
-; *** splash could be trimmed down to 42 bytes (6*7)
 ; *** could score shift6 be removed?
 ; *** make logo/copyright white? add rainbow?
 
