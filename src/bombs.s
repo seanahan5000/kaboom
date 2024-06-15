@@ -1,59 +1,5 @@
 
-;*** initialize these
-bomb_columns    .byte 2,4,6,8,10,12,14,16
-bomb_frames     .byte 1,0,0,0, 0, 0, 0, 0
-
-bomb_dy_offset  .byte 0,6,4,2,0         ; 2 bytes per line
-
 init_bombs      jsr write_unrolls
-                ; ***
-                rts
-
-update_bombs    lda bomb_phase
-                clc
-                adc bomb_dy
-                tax
-                sec
-                sbc #bombPhaseDy
-                bcc @4
-                pha
-
-                ldx #6
-@1              lda bomb_columns,x
-                sta bomb_columns+1,x
-                lda bomb_frames,x
-                sta bomb_frames+1,x
-                dex
-                bpl @1
-
-                ;*** pick new position, etc.
-                ;*** bad alignment -- center on bomber after move ***
-                lda bomber_x
-                asl
-                tax
-                lda div7,x
-                and #$FE
-                bne @3
-                lda #2                  ;*** fix with bomber instead
-@3              sta bomb_columns+0
-                ; *** also clamp to right side? ***
-
-                lda #1
-                sta bomb_frames+0
-
-                pla
-                tax
-@4              stx bomb_phase
-
-                cpx #14                 ;*** phase w/bomb 1 line from bottom
-                bcc @5
-                lda #0
-                sta bomb_frames+7
-@5
-                jsr draw_top_bomb
-                jsr draw_bombs
-                jsr draw_buckets
-
                 ; ***
                 rts
 
@@ -168,18 +114,7 @@ draw_bombs      lda bomb_phase
                 ; TODO: should game stop?
 @9
 @no_hit         ldx bomb_index
-
-                ; randomize bomb frame
-                ;   (always call random for consistent timing)
-                jsr random
-                eor vblank_count
-                and #$03
-                clc
-                adc #1
                 ldy bomb_frames,x
-                beq @10
-                sta bomb_frames,x
-@10
                 lda bomb_offsets_l,y
                 ; *** use wave directly?
                 ldy bomb_dy
@@ -204,9 +139,9 @@ draw_bombs      lda bomb_phase
                 ldx bomb_index
                 inx
                 cpx #8
-                beq @11
+                beq @10
                 jmp @1                  ;*** fixme
-@11             rts
+@10             rts
 
 bucket_tops     .byte bucketTopY
                 .byte bucketMidY
@@ -255,6 +190,8 @@ bucket_bottoms  .byte bucketTopY+bucketHeight
 ; splash2_line0   =   hiresLine165
 ; bucket2_line0   =   hiresLine173
 
+
+bomb_dy_offset  .byte 0,3*2,2*2,1*2,0   ; 2 bytes per line
 
 ; *** combine these ***
 
@@ -431,12 +368,18 @@ erase_top_bomb  ldy bomb_phase
 ;*** check this ***
 
 draw_top_bomb
-                ldy bomb_columns+0
-                sty column
+                lda bomb_columns+0
+                sta column
 
-                ldx #0                  ; *** choose data offset
-                                        ; *** even/odd/none
-                                        ; *** left/right
+                ; *** choose data offset
+                ; *** even/odd/none
+                ; *** left/right
+                ldy #0
+                lda bomb_frames+0
+                bne @0
+                ldy #4
+@0              ldx top_offsets,y
+
                 lda #bomb0Top
                 clc
                 adc bomb_phase
@@ -498,6 +441,8 @@ draw_top_bomb
 @mod2           cpy #$ff
                 bne @2
                 rts
+
+top_offsets     .byte 0,24,48,72,96
 
                 .align 256
 

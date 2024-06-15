@@ -1,10 +1,11 @@
 ;
 ; On entry:
-;   A: X position (0-139)
+;   bomber_x: X position (0-139)
 ;
 ;   draw at X * 2
 ;
-draw_bomber     asl
+draw_bomber     lda bomber_x
+                asl
                 tax
                 ldy div7,x
                 lda mod7,x

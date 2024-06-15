@@ -5,6 +5,7 @@
 ;   - Goal is to run at a solid 60fps (1023000 / 60 ~= 17050 cycles per frame)
 ;   - All drawing should be as fast a possible but limited to worst case
 ;       - Want frame rate to be stable
+;       - Exceptions are calls to random, to keep patterns correct
 ;
 
 ; Timing:
@@ -128,14 +129,14 @@ logoHeight      =   16
 
 vaporlockBlack  =   $80
 
+gameWaveMax     =   7
+
 temp            :=  $00
 offset          :=  $01
 linenum         :=  $02
-; temp_xcol       :=  $03
-; temp_xshift     :=  $04
 
 vblank_count    :=  $10
-game_wave       :=  $11                 ; max 7 (TODO: cap later)
+game_wave       :=  $11
 bucket_count    :=  $12
 buckets_x       :=  $13
 bomber_x        :=  $14
@@ -148,6 +149,9 @@ bucket_xshift   :=  $1B
 hit_xcol        :=  $1C
 hit_xshift      :=  $1D
 logo_offset     :=  $1E
+game_state      :=  $1F
+active_bombs    :=  $20
+bombs_dropped   :=  $21
 
 screenl         :=  $24
 screenh         :=  $25
@@ -175,7 +179,12 @@ end_line        :=  $94
 bomb_ptr        :=  $95
 bomb_ptr_h      :=  $96
 
+player_num      :=  $a0
+
 ; bomb code generation $a0-$a8
+
+bomb_frames     :=  $b0                 ; $b0-$b7
+bomb_columns    :=  $b8                 ; $b8-$bf
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
@@ -198,7 +207,7 @@ kaboom
                 sta bucket_count
                 lda #80
                 sta buckets_x
-                lda #80
+                lda #70
                 sta bomber_x
                 lda #0
                 sta bomber_dir
@@ -222,11 +231,28 @@ kaboom
                 sta graphics
 
                 jsr init_bombs          ;***
-                ; *** init bomb_columns and bomb_frames
+
                 lda #0
+                tax
+@0              sta bomb_frames,x
+                sta bomb_columns,x
+                inx
+                cpx #8
+                bne @0
+
+                lda #1                  ;***
                 sta bomb_frames+0
-                lda #2
+                lda #20
                 sta bomb_columns+0
+
+                lda #0
+                sta player_num
+
+                ; *** move to reset ***
+                lda #$ff
+                sta game_state
+                lda #0
+                sta bombs_dropped
 
 ; intialize digits buffer to "no digits"
                 ldx #5
@@ -235,6 +261,7 @@ kaboom
                 dex
                 bpl @1
 
+                ;*** common wave-begin code ***
                 lda game_wave
                 lsr
                 clc
@@ -250,30 +277,44 @@ kaboom
                 sta splash_bucket
                 sta splash_frame
 
-game_loop       jsr draw_score
+game_loop
+; *** check keys? ***
+
+                jsr draw_score
+
+                jsr erase_bomber
+                jsr erase_top_bomb
 
                 ; jsr advance_logo        ;***
                 ; *** pause on logo_offset == 0 and (logoHeight/2)*logoWidth
 
-                ; randomly change bomber's direction
+                bit game_state
+                bpl @running
+                ldy #0
+                ldx player_num
+                lda pbutton0,x
+                bpl @0
+                ; wave is now in progress
+                sty game_state
+@0              sty bomb_phase          ;***???
+                jmp bomber_still
+
+@running
+                ; periodically/randomly change bomber's direction
                 lda vblank_count
                 and #$0f
                 bne @1
-                jsr random              ;*** always pay for this ***
+                jsr random
                 bcs @1
                 lda bomber_dir
                 eor #$ff
                 sta bomber_dir
 @1
-                jsr erase_bomber
-                jsr erase_top_bomb
-
                 ; move bomber by +/- game_wave+1
                 sec
                 lda game_wave
-                bit bomber_dir
+                ldx bomber_dir
                 bpl bomber_right
-
 bomber_left     eor #$ff
                 clc
                 adc bomber_x
@@ -282,7 +323,6 @@ bomber_left     eor #$ff
                 cmp #$f0
                 bcc bomber_cmn
 @1              ldx #$00
-                stx bomber_dir
                 lda #bomberMinX
                 bpl bomber_cmn          ; always
 
@@ -290,17 +330,132 @@ bomber_right    adc bomber_x
                 cmp #bomberMaxX
                 bcc bomber_cmn
                 ldx #$ff
-                stx bomber_dir
                 lda #bomberMaxX
-bomber_cmn      sta bomber_x
-                ;***lda bomber_x
+bomber_cmn      bit game_state          ; not if waiting to start or already ended
+                bvs bomber_still
+                ldy bomb_phase          ; not if just before/after bomb will drop
+                cpy #17
+                bcs bomber_still
+                cpy #2
+                bcc bomber_still
+                stx bomber_dir
+                sta bomber_x
+bomber_still    jsr draw_bomber
 
-                jsr draw_bomber
-                jsr update_bombs        ;*** move later
+update_bombs
+; randomize bomb frame and count active bombs
+                lda #0
+                sta active_bombs
+                ldx #7                  ;*** original uses 8!
+@1              lda bomb_frames,x
+                beq @2
+                dec active_bombs
+                jsr random
+                eor vblank_count
+                and #$03
+                clc
+                adc #1
+                ldy bomb_frames,x
+                beq @2
+                sta bomb_frames,x
+@2              dex
+                bpl @1
+
+; adjust bomb_phase by dy
+                lda bomb_phase
+                clc
+                adc bomb_dy
+                sta bomb_phase          ;***
+                tax
+                sec
+                sbc #bombPhaseDy
+                bcc @no_new_bomb
+                sta bomb_phase
+
+; shift bomb buffers to make room for new bomb
+                ldx #6                  ;*** original uses 7
+@3              lda bomb_columns,x
+                sta bomb_columns+1,x
+                lda bomb_frames,x
+                sta bomb_frames+1,x
+                dex
+                bpl @3
+                lda #0
+                sta bomb_frames+0
+
+                ldx game_wave
+                bit game_state
+                bvc @4
+                lda active_bombs
+                ora splash_frame
+                bne @no_new_bomb
+                asl game_state
+                ldx game_wave
+                cpx #gameWaveMax
+                bcs @4
+                inx
+                stx game_wave
+; *** do this in some common area?
+                txa
+                lsr
+                clc
+                adc #1
+                sta bomb_dy
+                ; *** just use lookup? ***
+@4              txa
+                lsr
+                bcs @5
+; *** every other wave, do something differently
+                lda bomb_frames+1
+                bne @no_new_bomb
+@5              inc bombs_dropped
+                lda bombs_dropped
+                cmp bombs_per_wave,x
+                bcc @6
+                lda #0
+                sta bombs_dropped
+                lda #$7f
+                sta game_state
+                ; ***
+@6              lda random_seed
+                and #$08
+; *** use random seed & 0x08 to flip bomb horizontally
+                lda #1
+                sta bomb_frames+0
+
+                ;*** pick new position, etc.
+                ;*** bad alignment -- center on bomber after move ***
+                lda bomber_x
+                asl
+                tax
+                lda div7,x
+                and #$FE
+                bne @7
+                lda #2                  ;*** fix with bomber instead
+@7              sta bomb_columns+0
+                ; *** also clamp to right side? ***
+@no_new_bomb
+
+;*** where should this be done?
+                ldx bomb_phase
+                ;*** phase w/bomb 1 line from bottom
+                cpx #14
+                bcc @8
+                lda #0
+                sta bomb_frames+7
+                ; *** not getting erased ***
+@8
+
+                ; lda bomb_frames+0
+                ; beq @9                  ; *** fix this
+                jsr draw_top_bomb
+; @9
+                jsr draw_bombs
+                jsr draw_buckets
 
 ; TODO: should paddle range be centered on screen?
 ; TODO: can read_paddle be faster if end of range never needed?
-buckets         ldx #0
+buckets         ldx player_num
                 jsr read_paddle
                 tya
                 sec
@@ -345,6 +500,15 @@ buckets_cmn     sta buckets_x
                 bne @1                  ; 2/3
 
                 jmp game_loop
+
+bombs_per_wave  .byte 9
+                .byte 20
+                .byte 30
+                .byte 40
+                .byte 50
+                .byte 75
+                .byte 100
+                .byte 150
 
 ;---------------------------------------
 
@@ -463,6 +627,7 @@ logo_graphic    .byte $00,$00,$00,$00,$a8,$d5,$aa,$81,$a8,$d5,$82,$00,$00,$00,$0
 ; On exit:
 ;   A: random_seed value
 ;   C: bottom random_seed bit
+;   X,Y: unchanged
 ;
 random          lsr random_seed
                 rol

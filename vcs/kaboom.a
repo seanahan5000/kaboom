@@ -122,6 +122,7 @@ saverColorAnd   =   $84                 ; screen saver color AND value
 ; $86 = background color (center)
 ; $87 = color for player 0 score, temp
 ; $88 = color for player 1 score, temp
+tempActiveBombs =   $88
 ; $89-$97 = bomb color buffer
 
 ; $98 = relative bucket position in shifts/loops
@@ -146,10 +147,11 @@ otherBuckets    =   $A6                 ; bucket count (0-3) of other player
 otherWaveNum    =   $A7                 ; wave number (0-7) of other player
 otherScore      =   $A8                 ; ($A8-$AA) score of other player
 
-bombCount       =   $AB                 ; bombs dropped
+bombsDropped    =   $AB                 ; bombs dropped
 expBombIndex    =   $AC                 ; index of exploding bomb
-; $AD = game/player state???
-                                        ; (high bit clear when wave over)
+gameState       =   $AD                 ; game/player state
+                                        ;   bit 7: set when waiting to start wave
+                                        ;   bit 6: ???
 expBombFrame    =   $AE                 ; exploding bomb frame counter
 splashFrame     =   $AF                 ; splash frame (0000XX00)
                                         ; (catching bomb freq?)
@@ -202,8 +204,9 @@ B1005   STA vsync,X                     ; 4     ; F005: 95 00
         BNE B1005                       ; 2/3   ; F009: D0 FA
         JMP J13C1                       ; 3     ; F00B: 4C C1 F3
 
+game_loop
 ; preprocess bomb and background colors
-J100E   LDX #$12                        ; 2     ; F00E: A2 12
+        LDX #$12                        ; 2     ; F00E: A2 12
 B1010   LDA color_table,X               ; 4+    ; F010: BD 72 F6
         LDY expBombFrame                ; 3     ; F013: A4 AE
         CPY #$20                        ; 2     ; F015: C0 20
@@ -316,7 +319,7 @@ B10AB   DEX                             ; 2     ; F0AB: CA
         LDA playerBuckets               ; 3     ; F0C5: A5 A1
         BEQ B10EF                       ; 2/3   ; F0C7: F0 26
 
-; draw bomber with frown
+; draw bomber with different mouths
 B10C9   LDA bomber_colors,X             ; 4+    ; F0C9: BD 52 F6
         EOR saverColorEor               ; 3     ; F0CC: 45 83
         AND saverColorAnd               ; 3     ; F0CE: 25 84
@@ -325,11 +328,14 @@ B10C9   LDA bomber_colors,X             ; 4+    ; F0C9: BD 52 F6
         LDA bomber_bits,X               ; 4+    ; F0D4: BD D3 F6
         CPX #$16                        ; 2     ; F0D7: E0 16
         BNE B10DD                       ; 2/3   ; F0D9: D0 02
+; frown?
         LDA #%01101100                  ; 2     ; F0DB: A9 6C
 B10DD   BCS B10E7                       ; 2/3   ; F0DD: B0 08
+; "surprise"?
         LDA #%01101100                  ; 2     ; F0DF: A9 6C
         BIT $88                         ; 3     ; F0E1: 24 88
         BMI B10E7                       ; 2/3   ; F0E3: 30 02
+; smile?
         LDA #%01010100                  ; 2     ; F0E5: A9 54
 B10E7   STA grp1                        ; 3     ; F0E7: 85 1C
         DEY                             ; 2     ; F0E9: 88
@@ -370,9 +376,11 @@ B111E   DEX                             ; 2     ; F11E: CA
         BNE B1129                       ; 2/3   ; F126: D0 01
         ASL                             ; 2     ; F128: 0A
 B1129   ASL                             ; 2     ; F129: 0A
+; single-pixel buckets (hard)
         LDA #$00                        ; 2     ; F12A: A9 00
         STA $F6                         ; 3     ; F12C: 85 F6
         BCS B1132                       ; 2/3   ; F12E: B0 02
+; double-pixel buckets (normal)
         LDA #$05                        ; 2     ; F130: A9 05
 B1132   STA wsync                       ; 3     ; F132: 85 02
         STA nusiz1                      ; 3     ; F134: 85 05
@@ -733,7 +741,7 @@ B138D   STY saverColorEor               ; 3     ; F38D: 84 83
         STA wsync                       ; 3     ; F395: 85 02
         STA tim64t                      ; 4     ; F397: 8D 96 02
         LDY #$00                        ; 2     ; F39A: A0 00
-        STY $88                         ; 3     ; F39C: 84 88
+        STY tempActiveBombs             ; 3     ; F39C: 84 88
 
 ; check reset switch
         LDA swchb                       ; 4     ; F39E: AD 82 02
@@ -742,7 +750,7 @@ B138D   STY saverColorEor               ; 3     ; F38D: 84 83
 ; reset switch pressed
         JSR clear_vars                  ; 6     ; F3A4: 20 24 F6
 ; X = $FF
-        STX $AD                         ; 3     ; F3A7: 86 AD
+        STX gameState                   ; 3     ; F3A7: 86 AD
         ASL $80                         ; 5     ; F3A9: 06 80
         SEC                             ; 2     ; F3AB: 38
         ROR $80                         ; 5     ; F3AC: 66 80
@@ -778,6 +786,7 @@ B13D2
         BNE B13FA                       ; 2/3   ; F3DE: D0 1A
         BEQ B142A       ; always        ; 2/4   ; F3E0: F0 48
 B13E2
+; handle exploding bomb animation
         LDA expBombFrame                ; 3     ; F3E2: A5 AE
         BEQ B1459                       ; 2/4   ; F3E4: F0 73
         CMP #$20                        ; 2     ; F3E6: C9 20
@@ -799,9 +808,9 @@ B13FD   LDX expBombIndex                ; 3     ; F3FD: A6 AC
 J1403   LDA #$2B                        ; 2     ; F403: A9 2B
         STA expBombFrame                ; 3     ; F405: 85 AE
         LDX #$08                        ; 2     ; F407: A2 08
-        LDA bombCount                   ; 3     ; F409: A5 AB
+        LDA bombsDropped                ; 3     ; F409: A5 AB
         BEQ B140F                       ; 2/3   ; F40B: F0 02
-        DEC bombCount                   ; 5     ; F40D: C6 AB
+        DEC bombsDropped                ; 5     ; F40D: C6 AB
 B140F   STX expBombIndex                ; 3     ; F40F: 86 AC
         LDA $BB,X                       ; 4     ; F411: B5 BB
         BNE B13EC                       ; 2/4   ; F413: D0 D7
@@ -836,24 +845,28 @@ B1431   LDY playerState,X               ; 4     ; F431: B4 A1
         EOR #$01                        ; 2     ; F43E: 49 01
         STA playerNum                   ; 3     ; F440: 85 A0
 
-; decrement wave when player starts
+; decrement wave when player restarts
 B1442   LDX playerWaveNum               ; 3     ; F442: A6 A2
         TXA                             ; 2     ; F444: 8A
         BEQ B1451                       ; 2/3   ; F445: F0 0A
 ; give them half as many bombs to catch
+; (set bombCount to half already caught)
         DEX                             ; 2     ; F447: CA
         STX playerWaveNum               ; 3     ; F448: 86 A2
         LDA bombs_per_wave,X            ; 4+    ; F44A: BD F3 F6
         LSR                             ; 2     ; F44D: 4A
         CLC                             ; 2     ; F44E: 18
         ADC #$01                        ; 2     ; F44F: 69 01
-B1451   STA bombCount                   ; 3     ; F451: 85 AB
+B1451   STA bombsDropped                ; 3     ; F451: 85 AB
         LDX #$FF                        ; 2     ; F453: A2 FF
-        STX $AD                         ; 3     ; F455: 86 AD
+        STX gameState                   ; 3     ; F455: 86 AD
         BNE B13FA       ; always        ; 2/4   ; F457: D0 A1
 
-B1459   BIT $AD                         ; 3     ; F459: 24 AD
+; no exploding bombs in progress
+B1459   BIT gameState                   ; 3     ; F459: 24 AD
         BPL B1471                       ; 2/3   ; F45B: 10 14
+
+; read paddle button push to start wave
         LDA swcha                       ; 4     ; F45D: AD 80 02
         LDX playerNum                   ; 3     ; F460: A6 A0
         BEQ B1465                       ; 2/3   ; F462: F0 01
@@ -861,7 +874,8 @@ B1459   BIT $AD                         ; 3     ; F459: 24 AD
 B1465   ASL                             ; 2     ; F465: 0A
         LDA #$00                        ; 2     ; F466: A9 00
         BCS B146C                       ; 2/3   ; F468: B0 02
-        STA $AD                         ; 3     ; F46A: 85 AD
+; wave is now in progress
+        STA gameState                   ; 3     ; F46A: 85 AD
 B146C   STA bombVPhase                  ; 3     ; F46C: 85 B1
         JMP J1596                       ; 3     ; F46E: 4C 96 F5
 
@@ -876,7 +890,7 @@ B1471   LDA vblankCount                 ; 3     ; F471: A5 81
         EOR #$FF                        ; 2     ; F47E: 49 FF
         STA bomberDir                   ; 3     ; F480: 85 9B
 B1482
-        BIT $AD                         ; 3     ; F482: 24 AD
+        BIT gameState                   ; 3     ; F482: 24 AD
         BVS B14B6                       ; 2/3   ; F484: 70 30
 
 ; don't move bomber if bomb vertical phase is small or large
@@ -912,6 +926,7 @@ B14AF   STA bomberX                     ; 3     ; F4AF: 85 9A
 ; check for bomb being caught
 B14B6   BIT cxppmm                      ; 3     ; F4B6: 24 07
         BPL B1512                       ; 2/4   ; F4B8: 10 58
+
 ; clear the bomb in table
         LDX bombCaught                  ; 3     ; F4BA: A6 F8
         LDA #$00                        ; 2     ; F4BC: A9 00
@@ -949,7 +964,7 @@ B14E8   ADC playerScore,X               ; 4     ; F4E8: 75 A3
         BPL B14E8                       ; 2/3   ; F4EF: 10 F7
         CLD                             ; 2     ; F4F1: D8
         BCC B14FE                       ; 2/3   ; F4F2: 90 0A
-; pin score to 999999 and end game
+; pin score to 999999
         STA $A1                         ; 3     ; F4F4: 85 A1
         LDA #$99                        ; 2     ; F4F6: A9 99
         STA playerScore+0               ; 3     ; F4F8: 85 A3
@@ -970,7 +985,7 @@ B14FE   TYA                             ; 2     ; F4FE: 98
 B150E   LDA #$3F                        ; 2     ; F50E: A9 3F
         STA soundDuration               ; 3     ; F510: 85 B0
 
-; check for bomb missed?
+; check for bomb missed
 B1512   LDX bombIndex                   ; 3     ; F512: A6 F6
         LDA $BB,X                       ; 4     ; F514: B5 BB
         BEQ B1528                       ; 2/3   ; F516: F0 10
@@ -981,13 +996,14 @@ B151A   LDA $BB,X                       ; 4     ; F51A: B5 BB
         STA $BB,X                       ; 4     ; F520: 95 BB
 B1522   DEX                             ; 2     ; F522: CA
         BPL B151A                       ; 2/3   ; F523: 10 F5
+; go start explosion sequence
         JMP J1403                       ; 3     ; F525: 4C 03 F4
 
 ; update all bomb frame animations
 B1528   LDX #$08                        ; 2     ; F528: A2 08
 B152A   LDA $BB,X                       ; 4     ; F52A: B5 BB
         BEQ B153F                       ; 2/3   ; F52C: F0 11
-        DEC $88                         ; 5     ; F52E: C6 88
+        DEC tempActiveBombs             ; 5     ; F52E: C6 88
 ; randomize bomb frame
         JSR random                      ; 6     ; F530: 20 2E F6
         EOR vblankCount                 ; 3     ; F533: 45 81
@@ -1025,12 +1041,14 @@ B1555   LDA $B2,X                       ; 4     ; F555: B5 B2
         STA $BB                         ; 3     ; F562: 85 BB
 
         LDX playerWaveNum               ; 3     ; F564: A6 A2
-        BIT $AD                         ; 3     ; F566: 24 AD
+        BIT gameState                   ; 3     ; F566: 24 AD
         BVC B1579                       ; 2/3   ; F568: 50 0F
-        LDA $88                         ; 3     ; F56A: A5 88
+        LDA tempActiveBombs             ; 3     ; F56A: A5 88
         ORA splashFrame                 ; 3     ; F56C: 05 AF
         BNE J159E                       ; 2/3   ; F56E: D0 2E
-        ASL $AD                         ; 5     ; F570: 06 AD
+; no active bombs and no splash
+;   so switch to waiting for button press
+        ASL gameState                   ; 5     ; F570: 06 AD
 ; clamp wave to 7
         CPX #$07                        ; 2     ; F572: E0 07
         BCS B1579                       ; 2/3   ; F574: B0 03
@@ -1039,17 +1057,18 @@ B1555   LDA $B2,X                       ; 4     ; F555: B5 B2
 B1579   TXA                             ; 2     ; F579: 8A
         LSR                             ; 2     ; F57A: 4A
         BCS B1581                       ; 2/3   ; F57B: B0 04
+; every other wave, do something differently here
         LDA $BC                         ; 3     ; F57D: A5 BC
         BNE J159E                       ; 2/3   ; F57F: D0 1D
-B1581   INC bombCount                   ; 5     ; F581: E6 AB
-        LDA bombCount                   ; 3     ; F583: A5 AB
+B1581   INC bombsDropped                ; 5     ; F581: E6 AB
+        LDA bombsDropped                ; 3     ; F583: A5 AB
         CMP bombs_per_wave,X            ; 4+    ; F585: DD F3 F6
         BCC B1592                       ; 2/3   ; F588: 90 08
         LDA #$00                        ; 2     ; F58A: A9 00
-        STA bombCount                   ; 3     ; F58C: 85 AB
+        STA bombsDropped                ; 3     ; F58C: 85 AB
 ; if all bombs caught, change game state
         LDA #$7F                        ; 2     ; F58E: A9 7F
-        STA $AD                         ; 3     ; F590: 85 AD
+        STA gameState                   ; 3     ; F590: 85 AD
 B1592
 ; use random seed & 0x08 to flip bomb horizontally
         LDA randomSeed                  ; 3     ; F592: A5 82
@@ -1063,7 +1082,7 @@ J159E   JSR random                      ; 6     ; F59E: 20 2E F6
         AND #$03                        ; 2     ; F5A1: 29 03
         TAX                             ; 2     ; F5A3: AA
         LDY #$00                        ; 2     ; F5A4: A0 00
-        LDA $88                         ; 3     ; F5A6: A5 88
+        LDA tempActiveBombs             ; 3     ; F5A6: A5 88
         BEQ B15B2                       ; 2/3   ; F5A8: F0 08
         TXA                             ; 2     ; F5AA: 8A
         LSR                             ; 2     ; F5AB: 4A
@@ -1141,9 +1160,7 @@ B1613   LDA $F4,X                       ; 4     ; F613: B5 F4
         INX                             ; 2     ; F61C: E8
         CPX #$0A                        ; 2     ; F61D: E0 0A
         BCC B1613                       ; 2/3   ; F61F: 90 F2
-B1621
-; back to beginning of game loop
-        JMP J100E                       ; 3     ; F621: 4C 0E F0
+B1621   JMP game_loop                   ; 3     ; F621: 4C 0E F0
 
 ; clear zpage vars ($9E-$C3)
 clear_vars
