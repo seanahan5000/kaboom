@@ -463,6 +463,7 @@ B11BA   DEY                             ; 2     ; F1BA: 88
 B11BD   LDA bombIndex                   ; 3     ; F1BD: A5 F6
         CMP expBombIndex                ; 3     ; F1BF: C5 AC
         BNE B11C8                       ; 2/3   ; F1C1: D0 05
+; randomize exploding bomb color
         LDA randomSeed                  ; 3     ; F1C3: A5 82
         STA L0088,Y                     ; 5+    ; F1C5: 99 88 00
 B11C8   LDA ($FA),Y                     ; 5+    ; F1C8: B1 FA
@@ -773,7 +774,7 @@ J13C1   JSR clear_vars                  ; 6     ; F3C1: 20 24 F6
         STA $80                         ; 3     ; F3C8: 85 80
         TAY                             ; 2     ; F3CA: A8
         INY                             ; 2     ; F3CB: C8
-        STY $A5                         ; 3     ; F3CC: 84 A5
+        STY playerScore+2               ; 3     ; F3CC: 84 A5
         LDY #$1E                        ; 2     ; F3CE: A0 1E
 B13D0   STY $9F                         ; 3     ; F3D0: 84 9F
 B13D2
@@ -781,10 +782,12 @@ B13D2
         BPL B13FA                       ; 2/3   ; F3D4: 10 24
         LDA playerBuckets               ; 3     ; F3D6: A5 A1
         BNE B13E2                       ; 2/3   ; F3D8: D0 08
+; no buckets so idle
         LDA vblankCount                 ; 3     ; F3DA: A5 81
         AND #$7F                        ; 2     ; F3DC: 29 7F
         BNE B13FA                       ; 2/3   ; F3DE: D0 1A
         BEQ B142A       ; always        ; 2/4   ; F3E0: F0 48
+
 B13E2
 ; handle exploding bomb animation
         LDA expBombFrame                ; 3     ; F3E2: A5 AE
@@ -802,9 +805,12 @@ B13EC   LDA expBombFrame                ; 3     ; F3EC: A5 AE
         DEC expBombFrame                ; 5     ; F3F8: C6 AE
 B13FA   JMP J159E                       ; 3     ; F3FA: 4C 9E F5
 
+; clear bomb that has finished exploding
 B13FD   LDX expBombIndex                ; 3     ; F3FD: A6 AC
         LDA #$00                        ; 2     ; F3FF: A9 00
         STA $BB,X                       ; 4     ; F401: 95 BB
+
+; explode first/next bomb
 J1403   LDA #$2B                        ; 2     ; F403: A9 2B
         STA expBombFrame                ; 3     ; F405: 85 AE
         LDX #$08                        ; 2     ; F407: A2 08
@@ -816,14 +822,18 @@ B140F   STX expBombIndex                ; 3     ; F40F: 86 AC
         BNE B13EC                       ; 2/4   ; F413: D0 D7
         DEX                             ; 2     ; F415: CA
         BPL B140F                       ; 2/3   ; F416: 10 F7
+; no more bombs to explode
         LDA #$20                        ; 2     ; F418: A9 20
         STA expBombFrame                ; 3     ; F41A: 85 AE
+
 B141C   DEC expBombFrame                ; 5     ; F41C: C6 AE
         BNE B13FA                       ; 2/4   ; F41E: D0 DA
         LDA soundDuration               ; 3     ; F420: A5 B0
         BNE B1426                       ; 2/3   ; F422: D0 02
+; take away a bucket
         DEC playerBuckets               ; 5     ; F424: C6 A1
 B1426
+; does other player still have buckets?
         LDA $A6                         ; 3     ; F426: A5 A6
         BEQ B1442                       ; 2/3   ; F428: F0 18
 ; two players?
@@ -938,7 +948,7 @@ B14B6   BIT cxppmm                      ; 3     ; F4B6: 24 07
         BEQ B14C9                       ; 2/3   ; F4C6: F0 01
         DEY                             ; 2     ; F4C8: 88
 B14C9   DEY                             ; 2     ; F4C9: 88
-B14CA   LDX $A1                         ; 3     ; F4CA: A6 A1
+B14CA   LDX playerBuckets               ; 3     ; F4CA: A6 A1
         CPX #$02                        ; 2     ; F4CC: E0 02
         BEQ B14D4                       ; 2/3   ; F4CE: F0 04
         BCS B14D8                       ; 2/3   ; F4D0: B0 06
@@ -964,8 +974,8 @@ B14E8   ADC playerScore,X               ; 4     ; F4E8: 75 A3
         BPL B14E8                       ; 2/3   ; F4EF: 10 F7
         CLD                             ; 2     ; F4F1: D8
         BCC B14FE                       ; 2/3   ; F4F2: 90 0A
-; pin score to 999999
-        STA $A1                         ; 3     ; F4F4: 85 A1
+; clear buckets and pin score to 999999
+        STA playerBuckets               ; 3     ; F4F4: 85 A1
         LDA #$99                        ; 2     ; F4F6: A9 99
         STA playerScore+0               ; 3     ; F4F8: 85 A3
         STA playerScore+1               ; 3     ; F4FA: 85 A4
@@ -976,11 +986,11 @@ B14FE   TYA                             ; 2     ; F4FE: 98
         AND #$F0                        ; 2     ; F501: 29 F0
         BEQ B1512                       ; 2/3   ; F503: F0 0D
 ; award extra bucket if possible
-        LDX $A1                         ; 3     ; F505: A6 A1
+        LDX playerBuckets               ; 3     ; F505: A6 A1
         INX                             ; 2     ; F507: E8
         CPX #$04                        ; 2     ; F508: E0 04
         BCS B150E                       ; 2/3   ; F50A: B0 02
-        STX $A1                         ; 3     ; F50C: 86 A1
+        STX playerBuckets               ; 3     ; F50C: 86 A1
 ; make award sound play
 B150E   LDA #$3F                        ; 2     ; F50E: A9 3F
         STA soundDuration               ; 3     ; F510: 85 B0
@@ -1057,7 +1067,7 @@ B1555   LDA $B2,X                       ; 4     ; F555: B5 B2
 B1579   TXA                             ; 2     ; F579: 8A
         LSR                             ; 2     ; F57A: 4A
         BCS B1581                       ; 2/3   ; F57B: B0 04
-; every other wave, do something differently here
+; drop bombs less frequently on even waves
         LDA $BC                         ; 3     ; F57D: A5 BC
         BNE J159E                       ; 2/3   ; F57F: D0 1D
 B1581   INC bombsDropped                ; 5     ; F581: E6 AB
@@ -1077,6 +1087,7 @@ J1596   ORA $99                         ; 3     ; F596: 05 99
         STA $B2                         ; 3     ; F598: 85 B2
         LDA #<bomb_bits                 ; 2     ; F59A: A9 78
         STA $BB                         ; 3     ; F59C: 85 BB
+
 ; update splash frame and sound effects
 J159E   JSR random                      ; 6     ; F59E: 20 2E F6
         AND #$03                        ; 2     ; F5A1: 29 03

@@ -1,11 +1,12 @@
+draw_bombs      ldy game_wave
+                lda wave_bomb_dy,y
+                sta bomb_dy
 
-init_bombs      jsr write_unrolls
-                ; ***
-                rts
+                lda exp_bomb_frame
+                beq @1
+                jmp explode_bombs
 
-; NOTE: There's very little cycle savings
-;   in trimming end_line based on bomb_dy.
-draw_bombs      lda bomb_phase
+@1              lda bomb_vphase
                 clc
                 adc #bombMaxDy
                 sec
@@ -16,16 +17,18 @@ draw_bombs      lda bomb_phase
                 sta end_line
 
                 ldx #1
-@1              stx bomb_index
+@2              stx bomb_index
                 cpx #4
-                bcs @2
+                bcs @3
                 jmp @no_hit
-@2              bne @5
+@3              bne @6
 
                 jsr erase_buckets
 
-                ; update bucket position to latest value
-                ;   and compute right edge hit test values
+; update bucket position to latest value
+;   and compute right edge hit test values
+; *** changes here w/using bucket_xcol and bucket_xshift ***
+; *** move into main game loop?
                 lda buckets_x
                 asl
                 tax
@@ -36,19 +39,19 @@ draw_bombs      lda bomb_phase
                 sta bucket_xcol
                 lda mod7,x
                 sta bucket_xshift
-                bcc @3
+                bcc @4
                 ldx div7_hi,y
                 lda mod7_hi,y
-                bcs @4                  ; always
-@3              ldx div7,y
+                bcs @5                  ; always
+@4              ldx div7,y
                 lda mod7,y
-@4              stx hit_xcol
+@5              stx hit_xcol
                 sta hit_xshift
-@5
-                ; hit test bomb against buckets
-                ; *** (always do full hit test)
+@6
+; hit test bomb against buckets
+; *** (always do full hit test)
 
-                ; hit test bucket top/bottom
+; hit test bucket top/bottom
                 lda #bombsTop-bombMaxDy
                 clc
                 adc start_line
@@ -60,14 +63,14 @@ draw_bombs      lda bomb_phase
                 bcs @no_hit
 ;               clc
                 adc #14-1
-@6              cmp bucket_tops,y
-                bcs @7
+@7              cmp bucket_tops,y
+                bcs @8
                 dey
-                bpl @6
+                bpl @7
                 bmi @no_hit
-@7              sty @mod+1
+@8              sty @mod+1
 
-                ; hit test bucket left/right
+; hit test bucket left/right
                 ldx bomb_index
                 ldy bomb_columns,x
                 iny
@@ -75,12 +78,12 @@ draw_bombs      lda bomb_phase
                 bcc @no_hit
                 lda hit_xcol
                 cmp bomb_columns,x
-                bne @8
-                ; allow a small amount of overlap
-                ; TODO: skip this if flame would touch?
+                bne @9
+; allow a small amount of overlap
+; TODO: skip this if flame would touch?
                 lda hit_xshift
                 cmp #3
-@8              bcc @no_hit
+@9              bcc @no_hit
 
                 lda bomb_frames,x
                 beq @no_hit
@@ -92,31 +95,44 @@ draw_bombs      lda bomb_phase
                 lda #16                 ; *** tie to wave/speed?
                 sta splash_frame
 
-                ; bump score
-                ; *** always add something ***
+; bump score by game_wave + 1
+; TODO: always add something for constant timing
+; TODO: consider moving all of this into main loop
                 sed
-                lda score+2
-                sec                     ; game_wave+1
-                adc game_wave
-                sta score+2
-                lda score+1
-                adc #0
-                sta score+1
-                lda score+0
-                adc #0
-                sta score+0
+                lda game_wave
+                sec                     ; +1
+                ldx #2
+                ldy score+1
+@10             adc score,x
+                sta score,x
+                lda #0
+                dex
+                bpl @10
                 cld
-                bcc @9
+                bcc @11
+; clear buckets and pin score to 999999
+                sta bucket_count
                 lda #$99
                 sta score+0
                 sta score+1
                 sta score+2
-                ; TODO: should game stop?
-@9
+; check for score passing 1000
+@11             tya
+                eor score+1
+                and #$f0
+                beq @no_hit
+; award extra bucket if possible
+                ldx bucket_count
+                inx
+                cpx #4
+                bcs @12
+                stx bucket_count
+@12
+; TODO: make award sound play
+
 @no_hit         ldx bomb_index
                 ldy bomb_frames,x
                 lda bomb_offsets_l,y
-                ; *** use wave directly?
                 ldy bomb_dy
                 clc
                 adc bomb_dy_offset,y
@@ -139,9 +155,114 @@ draw_bombs      lda bomb_phase
                 ldx bomb_index
                 inx
                 cpx #8
-                beq @10
-                jmp @1                  ;*** fixme
-@10             rts
+                beq @13
+                jmp @2                  ;*** fixme
+@13             rts
+
+explode_bombs   lda bomb_vphase
+                sta start_line
+                clc
+                adc #bombPhaseDy
+                sta end_line
+                ldx #1
+@1              stx bomb_index
+                cpx #4
+                bne @2
+                jsr erase_buckets
+                ldx bomb_index
+@2              cpx exp_bomb_index
+                bne @8
+
+; draw currently exploding bomb
+                lda exp_bomb_frame
+                cmp #$20
+                bcc @8
+                jsr draw_explode
+
+                ; *** should not be needed,
+                ; ***   but without, bomb flashes afterwards
+                ldx exp_bomb_index
+                lda #$00
+                sta bomb_frames,x
+
+                beq @9                  ; always
+
+@8              ldy bomb_frames,x
+                lda bomb_offsets_l,y
+                ldy bomb_columns,x
+                tax
+                ; *** pick left/right bomb draw
+                ; jsr draw_bomb_l
+                ; jsr draw_bomb_r
+                jsr blit_bomb_l
+
+@9              lda start_line
+                clc
+                adc #bombPhaseDy
+                sta start_line
+;               clc
+                adc #bombPhaseDy
+                sta end_line
+                ldx bomb_index
+                inx
+                cpx #8
+                bne @1
+                rts
+
+; *** is it important to draw at same speed as bombs?
+; *** how will this affect explosion sounds?
+;
+; On entry:
+;   X: bomb index
+;
+draw_explode    ldy bomb_columns,x
+                dey
+                sty @mod1+1
+                tya
+                clc
+                adc #4
+                sta @mod3+1
+                lsr
+                lda exp_bomb_frame
+                and #$0F
+                bcc @1
+;               sec
+                adc #12-1
+@1              asl
+                tay
+                lda explode_table+0,y
+                sta @mod2+1
+                lda explode_table+1,y
+                sta @mod2+2
+
+                lda #0
+                sta offset
+                lda end_line
+                sta @mod4+1
+                ldx start_line
+                inx                     ;***
+                inx                     ;***
+@2              stx linenum
+                lda hires_table_lo+bombsTop-2,x ;*** -2?
+                sta screenl
+                lda hires_table_hi+bombsTop-2,x ;*** -2?
+                sta screenh
+                ldx offset
+@mod1           ldy #$ff
+@mod2           lda $ffff,x
+                sta (screenl),y
+                inx
+                iny
+@mod3           cpy #$ff
+                bne @mod2
+                stx offset
+                ldx linenum
+                inx
+                cpx #bombsBottom-bombsTop+2      ;***
+                bcs @3                  ;***
+@mod4           cpx #$ff
+                bne @2
+@3              rts
 
 bucket_tops     .byte bucketTopY
                 .byte bucketMidY
@@ -191,7 +312,9 @@ bucket_bottoms  .byte bucketTopY+bucketHeight
 ; bucket2_line0   =   hiresLine173
 
 
-bomb_dy_offset  .byte 0,3*2,2*2,1*2,0   ; 2 bytes per line
+wave_bomb_dy    .byte 1,1,2,2,3,3,4,4
+
+bomb_dy_offset  .byte 8,6,4,2,0         ; 2 bytes per line
 
 ; *** combine these ***
 
@@ -206,11 +329,6 @@ bomb_offsets_r  .byte bomb_rx_even-bombs_r_even
                 .byte bomb_r1_even-bombs_r_even
                 .byte bomb_r2_even-bombs_r_even
                 .byte bomb_r3_even-bombs_r_even
-
-
-; *** top of phase line: 28
-; *** first bomb line: 31
-; *** bomb is 12 lines high
 
 ; 12 lines of bomb + 18 phase lines
 topBombLine0    :=  hiresLine31
@@ -249,9 +367,14 @@ topBombLine29   :=  hiresLine60
 column          :=  offset
 ptr             :=  screenl             ; screenh
 
+prev_bomb_phase .byte 0
+prev_bomb_col   .byte 0
+
 ; NOTE: This takes 270 cycles versus 625
 ;   cycles for a normal implementation.
-erase_top_bomb  ldy bomb_phase
+erase_top_bomb  lda prev_bomb_col
+                beq @4
+                ldy prev_bomb_phase
                 lda @offsets,y
                 sta @mod1+1
                 sta @mod3+1
@@ -268,7 +391,7 @@ erase_top_bomb  ldy bomb_phase
                 ldy #0
                 lda #$60                ; rts
                 sta (ptr),y
-                ldy bomb_columns+0
+                ldy prev_bomb_col
                 ldx #$2a
                 tya
                 lsr
@@ -293,7 +416,7 @@ erase_top_bomb  ldy bomb_phase
                 ldy #0
                 lda #$99                ; sta abs,y
                 sta (ptr),y
-                rts
+@4              rts
 
 @offsets        .byte <@line0
                 .byte <@line1
@@ -367,8 +490,8 @@ erase_top_bomb  ldy bomb_phase
 ;   (or 4 lines of mask, 3 lines of copy)
 ;*** check this ***
 
-draw_top_bomb
-                lda bomb_columns+0
+draw_top_bomb   lda bomb_columns+0
+                sta prev_bomb_col
                 sta column
 
                 ; *** choose data offset
@@ -380,11 +503,12 @@ draw_top_bomb
                 ldy #4
 @0              ldx top_offsets,y
 
-                lda #bomb0Top
+                lda bomb_vphase
+                sta prev_bomb_phase
                 clc
-                adc bomb_phase
+                adc #bomb0Top
 ;               clc
-                adc #3                  ; 3 lines from top of phase
+                adc #2                ; 2 lines from top of phase
                 tay
 ;               clc
                 adc #5
@@ -1001,20 +1125,37 @@ bomb_r3_odd     .byte $55,$2a
                 .byte $55,$2a
                 .byte $55,$2a
 
-explode_table   .word explode_0a        ; white,  even
-                .word explode_0b        ; purple, even
-                .word explode_0c        ; white,  odd
-                .word explode_0d        ; purple, odd
-                .word explode_1a
-                .word explode_1b
-                .word explode_1c
-                .word explode_1d
-                .word explode_2a
-                .word explode_2b
-                .word explode_2c
-                .word explode_2d
+explode_table   .word explode_xx_even
+                .word explode_0p_even
+                .word explode_0w_even
+                .word explode_0p_even
 
-explode_0a      .byte $2a,$55,$2e,$55
+                .word explode_1w_even
+                .word explode_1p_even
+                .word explode_1w_even
+                .word explode_1p_even
+
+                .word explode_2w_even
+                .word explode_2p_even
+                .word explode_2w_even
+                .word explode_2p_even
+
+                .word explode_xx_odd
+                .word explode_0p_odd
+                .word explode_0w_odd
+                .word explode_0p_odd
+
+                .word explode_1w_odd
+                .word explode_1p_odd
+                .word explode_1w_odd
+                .word explode_1p_odd
+
+                .word explode_2w_odd
+                .word explode_2p_odd
+                .word explode_2w_odd
+                .word explode_2p_odd
+
+explode_0w_even .byte $2a,$55,$2e,$55
                 .byte $6a,$5d,$2a,$55
                 .byte $2a,$75,$3a,$55
                 .byte $2a,$75,$2e,$55
@@ -1031,24 +1172,7 @@ explode_0a      .byte $2a,$55,$2e,$55
                 .byte $2a,$75,$2e,$55
                 .byte $2a,$55,$2a,$55
 
-explode_0b      .byte $2a,$55,$24,$55
-                .byte $4a,$48,$2a,$55
-                .byte $2a,$25,$12,$55
-                .byte $2a,$25,$24,$55
-                .byte $4a,$24,$25,$55
-                .byte $2a,$22,$49,$54
-                .byte $2a,$2a,$25,$55
-                .byte $2a,$29,$25,$55
-                .byte $4a,$28,$29,$55
-                .byte $2a,$25,$45,$54
-                .byte $2a,$29,$25,$55
-                .byte $2a,$2a,$25,$55
-                .byte $2a,$22,$11,$55
-                .byte $4a,$24,$4a,$54
-                .byte $2a,$25,$24,$55
-                .byte $2a,$55,$2a,$55
-
-explode_0c      .byte $55,$2a,$5d,$2a
+explode_0w_odd  .byte $55,$2a,$5d,$2a
                 .byte $55,$3b,$55,$2a
                 .byte $55,$6a,$75,$2a
                 .byte $55,$6a,$5d,$2a
@@ -1065,7 +1189,24 @@ explode_0c      .byte $55,$2a,$5d,$2a
                 .byte $55,$6a,$5d,$2a
                 .byte $55,$2a,$55,$2a
 
-explode_0d      .byte $55,$2a,$49,$2a
+explode_0p_even .byte $2a,$55,$24,$55
+                .byte $4a,$48,$2a,$55
+                .byte $2a,$25,$12,$55
+                .byte $2a,$25,$24,$55
+                .byte $4a,$24,$25,$55
+                .byte $2a,$22,$49,$54
+                .byte $2a,$2a,$25,$55
+                .byte $2a,$29,$25,$55
+                .byte $4a,$28,$29,$55
+                .byte $2a,$25,$45,$54
+                .byte $2a,$29,$25,$55
+                .byte $2a,$2a,$25,$55
+                .byte $2a,$22,$11,$55
+                .byte $4a,$24,$4a,$54
+                .byte $2a,$25,$24,$55
+                .byte $2a,$55,$2a,$55
+
+explode_0p_odd  .byte $55,$2a,$49,$2a
                 .byte $15,$11,$55,$2a
                 .byte $55,$4a,$24,$2a
                 .byte $55,$4a,$48,$2a
@@ -1082,7 +1223,7 @@ explode_0d      .byte $55,$2a,$49,$2a
                 .byte $55,$4a,$48,$2a
                 .byte $55,$2a,$55,$2a
 
-explode_1a      .byte $2a,$55,$2a,$55
+explode_1w_even .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$3a,$55
                 .byte $2a,$55,$2a,$55
                 .byte $2a,$77,$2e,$55
@@ -1099,24 +1240,7 @@ explode_1a      .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
 
-explode_1b      .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$12,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$22,$24,$55
-                .byte $2a,$25,$25,$55
-                .byte $2a,$22,$29,$55
-                .byte $2a,$2a,$25,$55
-                .byte $2a,$2a,$25,$55
-                .byte $2a,$29,$29,$55
-                .byte $2a,$25,$25,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$25,$29,$55
-                .byte $2a,$22,$25,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-
-explode_1c      .byte $55,$2a,$55,$2a
+explode_1w_odd  .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$75,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$6e,$5d,$2a
@@ -1133,7 +1257,24 @@ explode_1c      .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
 
-explode_1d      .byte $55,$2a,$55,$2a
+explode_1p_even .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$12,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$22,$24,$55
+                .byte $2a,$25,$25,$55
+                .byte $2a,$22,$29,$55
+                .byte $2a,$2a,$25,$55
+                .byte $2a,$2a,$25,$55
+                .byte $2a,$29,$29,$55
+                .byte $2a,$25,$25,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$25,$29,$55
+                .byte $2a,$22,$25,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+
+explode_1p_odd  .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$25,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$44,$48,$2a
@@ -1150,7 +1291,7 @@ explode_1d      .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
 
-explode_2a      .byte $2a,$55,$2a,$55
+explode_2w_even .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
@@ -1167,24 +1308,7 @@ explode_2a      .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
                 .byte $2a,$55,$2a,$55
 
-explode_2b      .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$25,$29,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$25,$29,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$29,$25,$55
-                .byte $2a,$25,$29,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-                .byte $2a,$55,$2a,$55
-
-explode_2c      .byte $55,$2a,$55,$2a
+explode_2w_odd  .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
@@ -1201,7 +1325,24 @@ explode_2c      .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
 
-explode_2d      .byte $55,$2a,$55,$2a
+explode_2p_even .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$25,$29,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$25,$29,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$29,$25,$55
+                .byte $2a,$25,$29,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+
+explode_2p_odd  .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
@@ -1212,6 +1353,40 @@ explode_2d      .byte $55,$2a,$55,$2a
                 .byte $55,$52,$4a,$2a
                 .byte $55,$52,$4a,$2a
                 .byte $55,$4a,$52,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+
+explode_xx_even .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+                .byte $2a,$55,$2a,$55
+
+explode_xx_odd  .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
+                .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
@@ -1233,6 +1408,8 @@ explode_2d      .byte $55,$2a,$55,$2a
 ; 8 bombs
 ; = 3616 cycles
 
+; NOTE: There's very little cycle savings
+;   in trimming end_line based on bomb_dy.
 
 ;
 ; On entry:
@@ -1283,16 +1460,16 @@ blit_bomb_r     sty @mod1+1             ; 4
                 sta (bomb_ptr),y        ; 6
                 rts                     ; = 74 + lines * 20
 
-data_addr_l     =   $a0                 ; must be consecutive ->
-data_addr_h     =   $a1
-code_ptr        =   $a2
-code_ptr_h      =   $a3
-table_ptr1      =   $a4
-table_ptr1_h    =   $a5
-table_ptr2      =   $a6
-table_ptr2_h    =   $a7                 ; <- in this order
+data_addr_l     =   $50                 ; must be consecutive ->
+data_addr_h     =   $51
+code_ptr        =   $52
+code_ptr_h      =   $53
+table_ptr1      =   $54
+table_ptr1_h    =   $55
+table_ptr2      =   $56
+table_ptr2_h    =   $57                 ; <- in this order
 
-table_index     =   $a8
+table_index     =   $58
 
 table_buffer0_lo =  $4000
 table_buffer0_hi =  $4100
@@ -1316,7 +1493,7 @@ unroll_table    .word bombs_l_even,code_buffer0,table_buffer0_lo,table_buffer0_h
 ; 20 cycles per bomb line
 ; 14 bytes of code per bomb line
 
-write_unrolls   ldy #0                  ; table entry 0
+init_bombs      ldy #0                  ; table entry 0
                 jsr @unroll
                 ldy #8                  ; table entry 1
 @unroll         ldx #0

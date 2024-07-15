@@ -85,12 +85,14 @@ draw_buckets    ldy splash_bucket
                 ldy bucket_xshift
                 ldx splash_offsets,y
                 ldy bucket_xcol
+                sty prev_bucket_xcol
                 tya
                 clc
                 adc #bucketByteWidth-1
 @mod1           jsr $ffff
 
                 ldy bucket_count
+                beq @3
                 lda bucket_procs_lo-1,y
                 sta @mod2+1
                 lda bucket_procs_hi-1,y
@@ -102,6 +104,7 @@ draw_buckets    ldy splash_bucket
                 clc
                 adc #bucketByteWidth-1
 @mod2           jmp $ffff
+@3              rts
 
 bucket_procs_lo .byte <draw_1bucket
                 .byte <draw_2buckets
@@ -496,7 +499,9 @@ bucket_shift6   .byte $2a,$6a,$6a
                 .byte $55,$29,$55
                 .byte $03,$0f,$0f
 
-erase_buckets   ldy bucket_xcol
+prev_bucket_xcol .byte 0
+
+erase_buckets   ldy prev_bucket_xcol
                 ldx #6
                 tya
                 lsr

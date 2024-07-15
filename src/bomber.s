@@ -5,6 +5,7 @@
 ;   draw at X * 2
 ;
 draw_bomber     lda bomber_x
+                sta prev_bomber_x
                 asl
                 tax
                 ldy div7,x
@@ -173,7 +174,10 @@ draw_bomber_23  bomber bomber_2
 draw_bomber_45  bomber bomber_4
 draw_bomber_6   bomber bomber_6
 
-erase_bomber    lda bomber_x
+prev_bomber_x   .byte 0
+
+erase_bomber    lda prev_bomber_x
+                beq @3
                 asl
                 tax
                 ldy div7,x
@@ -221,7 +225,7 @@ erase_bomber    lda bomber_x
                 iny
                 dex
                 bne @2
-                rts
+@3              rts
 
 ; NOTE: bomber graphics are captured in column order
 ; NOTE: these are currently just the smiling bomber

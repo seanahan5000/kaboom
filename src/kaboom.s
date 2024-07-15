@@ -34,11 +34,13 @@
 
 ; TODO
 ;   - flipped bombs
-;   - bomb exposion sequence
 ;   - bomber smile/frown
 ;   - logo/copyright animation
 
 ; *** bomb not dropping in right-most column
+; *** top bomb doesn't explode
+; *** BOMBS.PIC is out of date (bad saves?)
+; *** player 2 score not different color
 
 ; *** match bomber start position to VCS
 ; *** add white hilite in buckets?
@@ -104,7 +106,7 @@ bottomHeight    =   10
 ; *** won't be needed if background filled with $FF ***
 scoreLeft       =   75
 
-bomb0Top        =   28
+bomb0Top        =   29
 bombPhaseDy     =   18
 bombsTop        =   bomb0Top+bombPhaseDy
 bombsBottom     =   topHeight+centerHeight
@@ -135,56 +137,79 @@ temp            :=  $00
 offset          :=  $01
 linenum         :=  $02
 
-vblank_count    :=  $10
-game_wave       :=  $11
-bucket_count    :=  $12
-buckets_x       :=  $13
-bomber_x        :=  $14
-bomber_dir      :=  $15
-random_seed     :=  $16
-score           :=  $17                 ; $17,$18,$19
-
-bucket_xcol     :=  $1A
-bucket_xshift   :=  $1B
+bucket_xcol     :=  $1A                 ;*** don't save?
+bucket_xshift   :=  $1B                 ;*** don't save?
 hit_xcol        :=  $1C
 hit_xshift      :=  $1D
 logo_offset     :=  $1E
-game_state      :=  $1F
-active_bombs    :=  $20
-bombs_dropped   :=  $21
 
 screenl         :=  $24
 screenh         :=  $25
 
-splash_bucket   :=  $75
-splash_frame    :=  $76
+; bombs variables
+;
+bomb_dy         :=  $61
+bomb_index      :=  $62
+start_line      :=  $63
+end_line        :=  $64
+bomb_ptr        :=  $65
+bomb_ptr_h      :=  $66
 
 ; score variables
-lmask           :=  $80
-rmask           :=  $81
-data_ptr        :=  $82
-data_ptr_h      :=  $83
+lmask           :=  $70
+rmask           :=  $71
+data_ptr        :=  $72
+data_ptr_h      :=  $73
 
 ; *** move to "permanent" zpage
-cur_digits      :=  $84                 ; $84,$85,$86,$87,$88,$89
+cur_digits      :=  $74                 ; $74,$75,$76,$77,$78,$79
 ; *** temporary buffer
-new_digits      :=  $8a                 ; $8a,$8b,$8c,$8d,$8e,$8f
+new_digits      :=  $7a                 ; $7a,$7b,$7c,$7d,$7e,$7f
 
-; bombs variables
-bomb_phase      :=  $90
-bomb_dy         :=  $91
-bomb_index      :=  $92
-start_line      :=  $93
-end_line        :=  $94
-bomb_ptr        :=  $95
-bomb_ptr_h      :=  $96
+; *** bomb code generation $50-$58
 
-player_num      :=  $a0
+                                        ; (start of init clear)
+game_select     :=  $80
+vblank_count    :=  $81
+random_seed     :=  $82
+;
+active_bombs    :=  $88
+;
+bomber_x        :=  $9a
+bomber_dir      :=  $9b
+splash_bucket   :=  $9c
+buckets_x       :=  $9d
+;
 
-; bomb code generation $a0-$a8
+                                        ; (start of reset clear)
+player_num      :=  $a0                 ; current player (0 or 1)
 
-bomb_frames     :=  $b0                 ; $b0-$b7
-bomb_columns    :=  $b8                 ; $b8-$bf
+player_state    :=  $a1
+bucket_count    :=  $a1
+game_wave       :=  $a2                 ; *** rename just "wave"?
+score           :=  $a3                 ; $a3,$a4,$a5
+
+other_state     :=  $a6
+other_buckets   :=  $a6
+other_wave      :=  $a7
+other_score     :=  $a8                 ; $a8,$a9,$aa
+
+bombs_dropped   :=  $ab
+exp_bomb_index  :=  $ac
+game_state      :=  $ad
+exp_bomb_frame  :=  $ae
+splash_frame    :=  $af
+
+;
+bomb_vphase     :=  $b1
+;
+bomb_frames     :=  $b3                 ; $b3-$ba
+                                        ; (end of reset clear)
+; NOTE: don't clear bomb columns on reset
+;   because they're needed to erase bombs
+; *** undo if fill_screen is enough ***
+bomb_columns    :=  $bb                 ; $bb-$c2
+                                        ; (end of init clear)
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
@@ -202,28 +227,24 @@ pbutton0        :=  $C061
                 .org $6000
 kaboom
                 lda #0
-                sta game_wave
-                lda #3
-                sta bucket_count
+                ldx #$3f
+@1              sta game_select,x
+                dex
+                bpl @1
+
+                ; *** clean these up ***
                 lda #80
                 sta buckets_x
                 lda #70
                 sta bomber_x
                 lda #0
-                sta bomber_dir
-                sta vblank_count
-                sta random_seed
                 sta logo_offset
-                sta bucket_xcol
-                sta bucket_xshift
+                ; sta bucket_xcol
+                ; sta bucket_xshift
+                ; *** clean these up ***
 
                 jsr fill_screen
                 jsr draw_logo
-
-                lda #$00
-                sta score+0
-                sta score+1
-                sta score+2
 
                 sta primary
                 sta fullscreen
@@ -232,121 +253,270 @@ kaboom
 
                 jsr init_bombs          ;***
 
-                lda #0
-                tax
-@0              sta bomb_frames,x
-                sta bomb_columns,x
-                inx
-                cpx #8
-                bne @0
-
-                lda #1                  ;***
-                sta bomb_frames+0
-                lda #20
-                sta bomb_columns+0
-
-                lda #0
-                sta player_num
-
-                ; *** move to reset ***
-                lda #$ff
-                sta game_state
-                lda #0
-                sta bombs_dropped
+                ; lda #1                  ;***
+                ; sta bomb_frames+0
+                ; lda #20
+                ; sta bomb_columns+0
 
 ; intialize digits buffer to "no digits"
                 ldx #5
                 lda #$0A
-@1              sta cur_digits,x
+@2              sta cur_digits,x
+                dex
+                bpl @2
+
+                jmp do_reset
+
+game_loop       jsr draw_score
+                jsr erase_bomber
+                jsr erase_top_bomb
+                jsr draw_bomber
+                jsr draw_top_bomb
+                jsr draw_bombs
+                jsr draw_buckets
+
+; TODO: draw/animate logo
+
+; TODO: should paddle range be centered on screen?
+; TODO: can read_paddle be faster if end of range never needed?
+move_buckets    ldx player_num
+                jsr read_paddle
+                tya
+                sec
+                sbc buckets_x
+                bcc @left
+@right          lsr
+                clc
+                adc buckets_x
+                cmp #bucketsMaxX
+                bcc @common
+                lda #bucketsMaxX
+                bcs @common             ; always
+
+@left           sec
+                ror
+                clc
+                adc buckets_x
+                cmp #bucketsMinX
+                bcs @common
+                lda #bucketsMinX
+@common         sta buckets_x
+
+; *** compute bucket hit testing values here ***
+
+                inc vblank_count
+
+; check for reset and select
+check_keys      lda keyboard
+                bpl keys_checked
+                bit unstrobe
+                and #%01011111          ; force upper case
+                cmp #'S'
+                beq @select
+                cmp #'R'
+                beq to_reset
+                bne keys_checked        ; always
+
+@select
+;*** only if game currently running
+                jsr fill_screen
+
+                inc game_select
+                jsr clear_vars
+                lda game_select
+                and #$01
+                sta game_select
+                tay
+                iny
+                sty score+2
+                bne keys_checked        ; always
+
+to_reset        jsr fill_screen
+; *** fold with do_reset and make startup call this?
+
+do_reset        jsr clear_vars
+                ldx #$ff
+                stx game_state
+                asl game_select
+                sec
+                ror game_select
+                lda #3
+                sta bucket_count
+                sta other_buckets
+
+keys_checked    bit game_select
+                bpl @0
+                lda bucket_count
+                bne @1
+; no buckets so idle
+                lda vblank_count
+                and #$7F
+                beq swap_player
+@0              jmp update_sounds
+
+; handle exploding bomb animation
+@1              lda exp_bomb_frame
+                beq no_explode
+                cmp #$20-1              ; -1 for erase frame
+                bcc cont_explode
+                beq @2
+                dec exp_bomb_frame
+                jmp update_sounds
+
+; clear bomb that has finished exploding
+@2              ldx exp_bomb_index
+                lda #$00
+                sta bomb_frames,x
+
+; explode first/next bomb
+explode_next    lda #$2B+1              ; +1 for immediate dec below
+                sta exp_bomb_frame
+                ldx #7                  ; versus #8 in original
+                lda bombs_dropped
+                beq @1
+                dec bombs_dropped
+@1              stx exp_bomb_index
+                lda bomb_frames,x
+                bne cont_explode
                 dex
                 bpl @1
 
-                ;*** common wave-begin code ***
-                lda game_wave
+                ; lda #0                  ;***
+                ; sta bomb_frames+7       ;***
+
+; no more bombs to explode
+                lda #$20-1              ; -1 for erase frame
+                sta exp_bomb_frame
+cont_explode    dec exp_bomb_frame
+                beq @1
+                jmp update_sounds
+
+; take away a bucket
+@1              dec bucket_count
+
+; does other player still have buckets?
+                lda other_buckets
+                beq next_wave
+
+swap_player     lda game_select         ; two players?
+                lsr
+                bcc next_wave
+
+; swap player states
+                ldx #4
+@1              ldy player_state,x
+                lda other_state,x
+                sta player_state,x
+                sty other_state,x
+                dex
+                bpl @1
+
+; toggle player number
+                lda player_num
+                eor #$01
+                sta player_num
+
+; decrement wave when player restarts
+next_wave       ldx game_wave
+                txa
+                beq @1
+; give them half as many bombs to catch
+; (set bombCount to half already caught)
+                dex
+                stx game_wave
+                lda bombs_per_wave,x
                 lsr
                 clc
                 adc #1
-                sta bomb_dy
+@1              sta bombs_dropped
+                ldx #$FF
+                stx game_state
+                jmp update_sounds
 
-                lda #bombPhaseDy
-                sec
-                sbc bomb_dy
-                sta bomb_phase
+; no exploding bombs in progress
+no_explode      bit game_state
+                bpl move_bomber
 
-                lda #0
-                sta splash_bucket
-                sta splash_frame
-
-game_loop
-; *** check keys? ***
-
-                jsr draw_score
-
-                jsr erase_bomber
-                jsr erase_top_bomb
-
-                ; jsr advance_logo        ;***
-                ; *** pause on logo_offset == 0 and (logoHeight/2)*logoWidth
-
-                bit game_state
-                bpl @running
+; read paddle button push to start wave
                 ldy #0
                 ldx player_num
                 lda pbutton0,x
-                bpl @0
-                ; wave is now in progress
+                bpl @3
+; wave is now in progress
                 sty game_state
-@0              sty bomb_phase          ;***???
-                jmp bomber_still
+@3              sty bomb_vphase
+                jmp update_sounds
 
-@running
-                ; periodically/randomly change bomber's direction
+; periodically/randomly change bomber's direction
+;
+; NOTE: Not always calling random here in order to keep
+;   patterns similar to original game, even though it
+;   doesn't maintain consistent timing.
+
+move_bomber     ldx bomber_dir
                 lda vblank_count
                 and #$0f
                 bne @1
                 jsr random
                 bcs @1
-                lda bomber_dir
+                txa
                 eor #$ff
-                sta bomber_dir
+                tax
 @1
-                ; move bomber by +/- game_wave+1
-                sec
+; move bomber by +/- game_wave+1
+;
+; NOTE: Do all the work of computing new position and
+;   then only commit to it at the end, all in order
+;   to keep consistent timing.
+                txa
+                asl
                 lda game_wave
-                ldx bomber_dir
-                bpl bomber_right
-bomber_left     eor #$ff
+                bcc @right
+@left           eor #$ff
                 clc
                 adc bomber_x
                 cmp #bomberMinX+1
-                bcc @1
+                bcc @2
                 cmp #$f0
-                bcc bomber_cmn
-@1              ldx #$00
+                bcc @common
+@2              ldx #$00                ; reverse
                 lda #bomberMinX
-                bpl bomber_cmn          ; always
+                bpl @common             ; always
 
-bomber_right    adc bomber_x
+@right          sec
+                adc bomber_x
                 cmp #bomberMaxX
-                bcc bomber_cmn
-                ldx #$ff
+                bcc @common
+                ldx #$ff                ; reverse
                 lda #bomberMaxX
-bomber_cmn      bit game_state          ; not if waiting to start or already ended
-                bvs bomber_still
-                ldy bomb_phase          ; not if just before/after bomb will drop
+@common         bit game_state          ; not if waiting to start or already ended
+                bvs @still
+                ldy bomb_vphase         ; not if just before/after bomb will drop
                 cpy #17
-                bcs bomber_still
+                bcs @still
                 cpy #2
-                bcc bomber_still
+                bcc @still
                 stx bomber_dir
                 sta bomber_x
-bomber_still    jsr draw_bomber
+@still
+
+;*** check for bomb being caught
+
+; check for bomb missed
+check_bomb_missed
+                lda bomb_frames+7
+                beq @8
+                ldx bomb_vphase
+                cpx #12
+                bcc @8
+                jmp explode_next
+@8
 
 update_bombs
 ; randomize bomb frame and count active bombs
                 lda #0
                 sta active_bombs
-                ldx #7                  ;*** original uses 8!
+                ldx #7                  ; versus 8 in original
 @1              lda bomb_frames,x
                 beq @2
                 dec active_bombs
@@ -362,18 +532,18 @@ update_bombs
                 bpl @1
 
 ; adjust bomb_phase by dy
-                lda bomb_phase
+                ldy game_wave
+                lda bomb_vphase
                 clc
-                adc bomb_dy
-                sta bomb_phase          ;***
-                tax
+                adc wave_bomb_dy,y
+                sta bomb_vphase
                 sec
                 sbc #bombPhaseDy
                 bcc @no_new_bomb
-                sta bomb_phase
+                sta bomb_vphase
 
 ; shift bomb buffers to make room for new bomb
-                ldx #6                  ;*** original uses 7
+                ldx #6                  ; versus 7 in original
 @3              lda bomb_columns,x
                 sta bomb_columns+1,x
                 lda bomb_frames,x
@@ -395,17 +565,10 @@ update_bombs
                 bcs @4
                 inx
                 stx game_wave
-; *** do this in some common area?
-                txa
-                lsr
-                clc
-                adc #1
-                sta bomb_dy
-                ; *** just use lookup? ***
 @4              txa
                 lsr
                 bcs @5
-; *** every other wave, do something differently
+; drop bombs less frequently on even waves
                 lda bomb_frames+1
                 bne @no_new_bomb
 @5              inc bombs_dropped
@@ -414,17 +577,17 @@ update_bombs
                 bcc @6
                 lda #0
                 sta bombs_dropped
-                lda #$7f
+; if all bombs caught, change game state
+                lda #$7F
                 sta game_state
-                ; ***
 @6              lda random_seed
                 and #$08
 ; *** use random seed & 0x08 to flip bomb horizontally
                 lda #1
                 sta bomb_frames+0
 
-                ;*** pick new position, etc.
-                ;*** bad alignment -- center on bomber after move ***
+;*** pick new position, etc.
+;*** bad alignment -- center on bomber after move ***
                 lda bomber_x
                 asl
                 tax
@@ -436,54 +599,37 @@ update_bombs
                 ; *** also clamp to right side? ***
 @no_new_bomb
 
-;*** where should this be done?
-                ldx bomb_phase
-                ;*** phase w/bomb 1 line from bottom
-                cpx #14
-                bcc @8
-                lda #0
-                sta bomb_frames+7
-                ; *** not getting erased ***
-@8
+update_sounds
+; *** update splash frame
 
-                ; lda bomb_frames+0
-                ; beq @9                  ; *** fix this
-                jsr draw_top_bomb
-; @9
-                jsr draw_bombs
-                jsr draw_buckets
+                jsr sync
+                jmp game_loop
 
-; TODO: should paddle range be centered on screen?
-; TODO: can read_paddle be faster if end of range never needed?
-buckets         ldx player_num
-                jsr read_paddle
-                tya
-                sec
-                sbc buckets_x
-                bcc buckets_left
-buckets_right   lsr
-                clc
-                adc buckets_x
-                cmp #bucketsMaxX
-                bcc buckets_cmn
-                lda #bucketsMaxX
-                bcs buckets_cmn         ; always
+bombs_per_wave  .byte 9
+                .byte 20
+                .byte 30
+                .byte 40
+                .byte 50
+                .byte 75
+                .byte 100
+                .byte 150
 
-buckets_left    sec
-                ror
-                clc
-                adc buckets_x
-                cmp #bucketsMinX
-                bcs buckets_cmn
-                lda #bucketsMinX
-buckets_cmn     sta buckets_x
-                inc vblank_count
+;---------------------------------------
+
+clear_vars      lda #0
+                ldx #$1f-8              ; -8 to exclude bomb_columns
+@1              sta player_num,x
+                dex
+                bpl @1
+                rts
+
+;---------------------------------------
 
 ; Sync to line just before CallaVision logo using
 ;   vaporlock method.  Note that 5 matches of magic
 ;   value must be seen in order to distinguish active
 ;   scan matches from hsync and vsync.
-                lda #vaporlockBlack
+sync            lda #vaporlockBlack
 @1              cmp $c050               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
@@ -498,17 +644,7 @@ buckets_cmn     sta buckets_x
                 nop                     ; 2
                 cmp $c050               ; 4
                 bne @1                  ; 2/3
-
-                jmp game_loop
-
-bombs_per_wave  .byte 9
-                .byte 20
-                .byte 30
-                .byte 40
-                .byte 50
-                .byte 75
-                .byte 100
-                .byte 150
+                rts
 
 ;---------------------------------------
 
@@ -565,6 +701,8 @@ fill_screen
                 cpx #topHeight+centerHeight+bottomHeight
                 bne @5
                 rts
+
+;---------------------------------------
 
 advance_logo    lda logo_offset
                 clc
@@ -679,3 +817,13 @@ read_paddle     lda $c070               ; trigger paddles
                 .include "buckets.s"
                 .include "score.s"
                 .include "tables.s"
+
+; new Callavision graphic
+                ;{"x":70,"y":183,"width":112,"height":7}
+                ; hex 80502a55ff8380fcffff81fcff838080
+                ; hex 80d4aad58380808080c0818f80808080
+                ; hex 80d4aaf581fc99b0e0cfe1c39ff3e7b0
+                ; hex 802a556a80cc99b0e0ccf9cc81b3e6b3
+                ; hex 80d5aab580fc99b0e0cf9fcc9fb3e6bf
+                ; hex 80d5aabd80cc99b0e0cc878c98b3e6bc
+                ; hex c0aad5febfccf9f3e7cc81cc9ff3e7b0
