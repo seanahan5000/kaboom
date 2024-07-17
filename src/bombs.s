@@ -6,7 +6,9 @@ draw_bombs      ldy game_wave
                 beq @1
                 jmp explode_bombs
 
-@1              lda bomb_vphase
+@1              jsr draw_top_bomb
+
+                lda bomb_vphase
                 clc
                 adc #bombMaxDy
                 sec
@@ -17,11 +19,11 @@ draw_bombs      ldy game_wave
                 sta end_line
 
                 ldx #1
-@2              stx bomb_index
+@next_bomb      stx bomb_index
                 cpx #4
-                bcs @3
+                bcs @2
                 jmp @no_hit
-@3              bne @6
+@2              bne @5
 
                 jsr erase_buckets
 
@@ -39,15 +41,15 @@ draw_bombs      ldy game_wave
                 sta bucket_xcol
                 lda mod7,x
                 sta bucket_xshift
-                bcc @4
+                bcc @3
                 ldx div7_hi,y
                 lda mod7_hi,y
-                bcs @5                  ; always
-@4              ldx div7,y
+                bcs @4                  ; always
+@3              ldx div7,y
                 lda mod7,y
-@5              stx hit_xcol
+@4              stx hit_xcol
                 sta hit_xshift
-@6
+@5
 ; hit test bomb against buckets
 ; *** (always do full hit test)
 
@@ -63,27 +65,30 @@ draw_bombs      ldy game_wave
                 bcs @no_hit
 ;               clc
                 adc #14-1
-@7              cmp bucket_tops,y
-                bcs @8
+@6              cmp bucket_tops,y
+                bcs @7
                 dey
-                bpl @7
+                bpl @6
                 bmi @no_hit
-@8              sty @mod+1
+@7              sty @mod+1
 
 ; hit test bucket left/right
                 ldx bomb_index
-                ldy bomb_columns,x
+                lda bomb_columns,x
+                and #$7f
+                sta temp
+                tay
                 iny
                 cpy bucket_xcol
                 bcc @no_hit
                 lda hit_xcol
-                cmp bomb_columns,x
-                bne @9
+                cmp temp
+                bne @8
 ; allow a small amount of overlap
 ; TODO: skip this if flame would touch?
                 lda hit_xshift
                 cmp #3
-@9              bcc @no_hit
+@8              bcc @no_hit
 
                 lda bomb_frames,x
                 beq @no_hit
@@ -103,13 +108,13 @@ draw_bombs      ldy game_wave
                 sec                     ; +1
                 ldx #2
                 ldy score+1
-@10             adc score,x
+@9              adc score,x
                 sta score,x
                 lda #0
                 dex
-                bpl @10
+                bpl @9
                 cld
-                bcc @11
+                bcc @10
 ; clear buckets and pin score to 999999
                 sta bucket_count
                 lda #$99
@@ -117,7 +122,7 @@ draw_bombs      ldy game_wave
                 sta score+1
                 sta score+2
 ; check for score passing 1000
-@11             tya
+@10             tya
                 eor score+1
                 and #$f0
                 beq @no_hit
@@ -125,24 +130,13 @@ draw_bombs      ldy game_wave
                 ldx bucket_count
                 inx
                 cpx #4
-                bcs @12
+                bcs @11
                 stx bucket_count
-@12
+@11
 ; TODO: make award sound play
 
-@no_hit         ldx bomb_index
-                ldy bomb_frames,x
-                lda bomb_offsets_l,y
-                ldy bomb_dy
-                clc
-                adc bomb_dy_offset,y
-                ldy bomb_columns,x
-                tax
-
-                ; *** pick left/right bomb draw
-                ; jsr draw_bomb_l
-                ; jsr draw_bomb_r
-                jsr blit_bomb_l
+@no_hit         ldy bomb_dy
+                jsr draw_bomb
 
                 lda start_line
                 clc
@@ -155,28 +149,47 @@ draw_bombs      ldy game_wave
                 ldx bomb_index
                 inx
                 cpx #8
-                beq @13
-                jmp @2                  ;*** fixme
-@13             rts
+                beq @12
+                jmp @next_bomb          ;*** fixme
+@12             rts
 
-explode_bombs   lda bomb_vphase
+explode_bombs   lda exp_bomb_index
+                bne @1
+                lda exp_bomb_frame
+                cmp #$20
+                bcc @1
+
+; draw top explosion
+                lda bomb_vphase
+                clc
+                adc #bomb0Top
+                ldx #0
+                jsr draw_explode
+                jmp @2
+
+@1              jsr draw_top_bomb
+@2              lda bomb_vphase
                 sta start_line
                 clc
                 adc #bombPhaseDy
                 sta end_line
                 ldx #1
-@1              stx bomb_index
+@next_bomb      stx bomb_index
                 cpx #4
-                bne @2
+                bne @3
                 jsr erase_buckets
                 ldx bomb_index
-@2              cpx exp_bomb_index
-                bne @8
+@3              cpx exp_bomb_index
+                bne @4
 
 ; draw currently exploding bomb
                 lda exp_bomb_frame
                 cmp #$20
-                bcc @8
+                bcc @4
+
+                lda start_line
+                clc
+                adc #bombsTop
                 jsr draw_explode
 
                 ; *** should not be needed,
@@ -185,18 +198,12 @@ explode_bombs   lda bomb_vphase
                 lda #$00
                 sta bomb_frames,x
 
-                beq @9                  ; always
+                beq @5                  ; always
 
-@8              ldy bomb_frames,x
-                lda bomb_offsets_l,y
-                ldy bomb_columns,x
-                tax
-                ; *** pick left/right bomb draw
-                ; jsr draw_bomb_l
-                ; jsr draw_bomb_r
-                jsr blit_bomb_l
+@4              ldy #4
+                jsr draw_bomb
 
-@9              lda start_line
+@5              lda start_line
                 clc
                 adc #bombPhaseDy
                 sta start_line
@@ -206,16 +213,40 @@ explode_bombs   lda bomb_vphase
                 ldx bomb_index
                 inx
                 cpx #8
-                bne @1
+                bne @next_bomb
                 rts
+;
+; On entry:
+;   Y: bomb dy
+;
+draw_bomb       ldx bomb_index
+                lda bomb_columns,x
+                pha
+                lda bomb_frames,x
+                tax
+                lda bomb_offsets_l,x
+                clc
+                adc bomb_dy_offset,y
+                tax
+                pla
+                bmi @1
+                tay
+                jmp blit_bomb_l
+@1              and #$7f
+                tay
+                jmp blit_bomb_r
 
 ; *** is it important to draw at same speed as bombs?
 ; *** how will this affect explosion sounds?
 ;
 ; On entry:
+;   A: top line
 ;   X: bomb index
 ;
-draw_explode    ldy bomb_columns,x
+draw_explode    sta linenum
+                lda bomb_columns,x
+                and #$7f
+                tay
                 dey
                 sty @mod1+1
                 tya
@@ -237,15 +268,15 @@ draw_explode    ldy bomb_columns,x
 
                 lda #0
                 sta offset
-                lda end_line
+                lda linenum
+                tax
+                clc
+                adc #16
                 sta @mod4+1
-                ldx start_line
-                inx                     ;***
-                inx                     ;***
 @2              stx linenum
-                lda hires_table_lo+bombsTop-2,x ;*** -2?
+                lda hires_table_lo,x
                 sta screenl
-                lda hires_table_hi+bombsTop-2,x ;*** -2?
+                lda hires_table_hi,x
                 sta screenh
                 ldx offset
 @mod1           ldy #$ff
@@ -258,8 +289,8 @@ draw_explode    ldy bomb_columns,x
                 stx offset
                 ldx linenum
                 inx
-                cpx #bombsBottom-bombsTop+2      ;***
-                bcs @3                  ;***
+                cpx #bombsBottom
+                bcs @3
 @mod4           cpx #$ff
                 bne @2
 @3              rts
@@ -491,16 +522,21 @@ erase_top_bomb  lda prev_bomb_col
 ;*** check this ***
 
 draw_top_bomb   lda bomb_columns+0
+                tax
+                and #$7f
                 sta prev_bomb_col
                 sta column
 
                 ; *** choose data offset
                 ; *** even/odd/none
                 ; *** left/right
-                ldy #0
-                lda bomb_frames+0
-                bne @0
                 ldy #4
+                lda bomb_frames+0
+                beq @0
+                ldy #0
+                txa
+                bpl @0
+                iny
 @0              ldx top_offsets,y
 
                 lda bomb_vphase

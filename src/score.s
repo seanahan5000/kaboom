@@ -60,7 +60,10 @@ draw_score
                 asl                     ; clc
                 sta temp                ; temp = digit * 8
                 ldy digit_x,x           ; y = actual x coordinate
-                ldx mod7,y              ; x = shift
+                lda player_num
+                beq @6
+                iny                     ; shift right 1 pixel for player 2
+@6              ldx mod7,y              ; x = shift
                 lda digit_lmasks,x
                 sta lmask
                 lda digit_rmasks,x

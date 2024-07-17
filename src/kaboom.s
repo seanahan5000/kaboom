@@ -33,20 +33,19 @@
 ;   Total           13014 (13500 measured)
 
 ; TODO
-;   - flipped bombs
+;   - clean reset/select
 ;   - bomber smile/frown
-;   - logo/copyright animation
+;   ? odd bomb alignment
 
 ; *** bomb not dropping in right-most column
-; *** top bomb doesn't explode
 ; *** BOMBS.PIC is out of date (bad saves?)
-; *** player 2 score not different color
 
+; *** add white to explosion flash sequence?
+; *** match when bomber is holding bomb to VCS
 ; *** match bomber start position to VCS
 ; *** add white hilite in buckets?
 ;   *** (requires drawing change/cycles)
-; *** could score shift6 be removed?
-; *** make logo/copyright white? add rainbow?
+; *** test 999999 score pinning
 
 ; *** bomb hits bucket +0
 ; *** bomb hidden      +1
@@ -97,13 +96,11 @@
     .endif
 .endmacro
 
-topHeight       =   40
+scoreHeight     =   9                   ; blank line + digits
+topHeight       =   scoreHeight + 31
 centerHeight    =   142
 bottomHeight    =   10
 
-; NOTE: This value is chosen so that the last score digit does not
-;   have a shift of 6, avoiding artifacts on right edge of digit "4"
-; *** won't be needed if background filled with $FF ***
 scoreLeft       =   75
 
 bomb0Top        =   29
@@ -125,8 +122,8 @@ bucketHeight    =   8
 
 bucketByteWidth =   6
 
-logoLeft        =   13
-logoWidth       =   15
+logoLeft        =   12
+logoWidth       =   16
 logoHeight      =   16
 
 vaporlockBlack  =   $80
@@ -227,7 +224,7 @@ pbutton0        :=  $C061
                 .org $6000
 kaboom
                 lda #0
-                ldx #$3f
+                ldx #$42
 @1              sta game_select,x
                 dex
                 bpl @1
@@ -243,39 +240,29 @@ kaboom
                 ; sta bucket_xshift
                 ; *** clean these up ***
 
-                jsr fill_screen
-                jsr draw_logo
-
-                sta primary
-                sta fullscreen
-                sta hires
-                sta graphics
-
-                jsr init_bombs          ;***
+                jsr init_bombs
 
                 ; lda #1                  ;***
                 ; sta bomb_frames+0
                 ; lda #20
                 ; sta bomb_columns+0
 
-; intialize digits buffer to "no digits"
-                ldx #5
-                lda #$0A
-@2              sta cur_digits,x
-                dex
-                bpl @2
+                jmp reset
 
-                jmp do_reset
+game_loop       lda exp_bomb_frame
+                beq @1
+                cmp #$20-1              ; -1 for erase frame
+                bcs @1
+                jsr flash_screen
+                jmp cont_explode
 
-game_loop       jsr draw_score
+@1              jsr draw_score
                 jsr erase_bomber
                 jsr erase_top_bomb
                 jsr draw_bomber
-                jsr draw_top_bomb
                 jsr draw_bombs
                 jsr draw_buckets
-
-; TODO: draw/animate logo
+                jsr draw_logo
 
 ; TODO: should paddle range be centered on screen?
 ; TODO: can read_paddle be faster if end of range never needed?
@@ -314,14 +301,10 @@ check_keys      lda keyboard
                 cmp #'S'
                 beq @select
                 cmp #'R'
-                beq to_reset
+                beq reset
                 bne keys_checked        ; always
 
-@select
-;*** only if game currently running
-                jsr fill_screen
-
-                inc game_select
+@select         inc game_select
                 jsr clear_vars
                 lda game_select
                 and #$01
@@ -329,12 +312,13 @@ check_keys      lda keyboard
                 tay
                 iny
                 sty score+2
-                bne keys_checked        ; always
 
-to_reset        jsr fill_screen
-; *** fold with do_reset and make startup call this?
+;*** only if game currently running
+                jsr fill_screen
 
-do_reset        jsr clear_vars
+                jmp keys_checked
+
+reset           jsr clear_vars
                 ldx #$ff
                 stx game_state
                 asl game_select
@@ -344,27 +328,36 @@ do_reset        jsr clear_vars
                 sta bucket_count
                 sta other_buckets
 
+                lda #0
+                sta logo_offset         ; *** move to clear variables
+
+                jsr fill_screen
+                sta primary
+                sta fullscreen
+                sta hires
+                sta graphics
+
 keys_checked    bit game_select
-                bpl @0
+                bpl @1
                 lda bucket_count
-                bne @1
+                bne @2
 ; no buckets so idle
                 lda vblank_count
                 and #$7F
                 beq swap_player
-@0              jmp update_sounds
+@1              jmp update_sounds
 
 ; handle exploding bomb animation
-@1              lda exp_bomb_frame
+@2              lda exp_bomb_frame
                 beq no_explode
                 cmp #$20-1              ; -1 for erase frame
                 bcc cont_explode
-                beq @2
+                beq @3
                 dec exp_bomb_frame
                 jmp update_sounds
 
 ; clear bomb that has finished exploding
-@2              ldx exp_bomb_index
+@3              ldx exp_bomb_index
                 lda #$00
                 sta bomb_frames,x
 
@@ -380,9 +373,6 @@ explode_next    lda #$2B+1              ; +1 for immediate dec below
                 bne cont_explode
                 dex
                 bpl @1
-
-                ; lda #0                  ;***
-                ; sta bomb_frames+7       ;***
 
 ; no more bombs to explode
                 lda #$20-1              ; -1 for erase frame
@@ -410,6 +400,8 @@ swap_player     lda game_select         ; two players?
                 sty other_state,x
                 dex
                 bpl @1
+
+                jsr clear_score
 
 ; toggle player number
                 lda player_num
@@ -509,6 +501,21 @@ check_bomb_missed
                 ldx bomb_vphase
                 cpx #12
                 bcc @8
+
+;*******************************************
+;                 lda game_select         ;***
+;                 lsr
+;                 bcs @9
+;                 lda bucket_count
+;                 cmp #3
+;                 bcs @9
+; (doesn't work when wave >5)
+;                 lda #0                  ;***
+;                 sta bomb_frames+7       ;***
+;                 beq @8                  ;***
+; @9
+;*******************************************
+
                 jmp explode_next
 @8
 
@@ -580,9 +587,17 @@ update_bombs
 ; if all bombs caught, change game state
                 lda #$7F
                 sta game_state
-@6              lda random_seed
+@6
+; use random seed & 0x08 to flip bomb horizontally, move to high bit
+                lda random_seed
                 and #$08
-; *** use random seed & 0x08 to flip bomb horizontally
+                asl
+                asl
+                asl
+                asl
+                sta temp
+
+; bomber always hold bomb with unlit fuse
                 lda #1
                 sta bomb_frames+0
 
@@ -595,7 +610,8 @@ update_bombs
                 and #$FE
                 bne @7
                 lda #2                  ;*** fix with bomber instead
-@7              sta bomb_columns+0
+@7              ora temp                ; apply hflip flag
+                sta bomb_columns+0
                 ; *** also clamp to right side? ***
 @no_new_bomb
 
@@ -619,6 +635,15 @@ bombs_per_wave  .byte 9
 clear_vars      lda #0
                 ldx #$1f-8              ; -8 to exclude bomb_columns
 @1              sta player_num,x
+                dex
+                bpl @1
+                ; fall through
+
+clear_digits
+; intialize digits buffer to "no digits"
+                ldx #5
+                lda #$0A
+@1              sta cur_digits,x
                 dex
                 bpl @1
                 rts
@@ -649,115 +674,157 @@ sync            lda #vaporlockBlack
 ;---------------------------------------
 
 fill_screen
-; fill solid white lines
-;*** set high bit for lines covered by score digits ***
+; fill solid white #$FF lines for score, except for
+;   first and last column to avoid color artifacts
                 ldx #0
 @1              lda hires_table_lo,x
                 sta screenl
                 lda hires_table_hi,x
                 sta screenh
-                ldy #0
+                ldy #39
+                lda #$7f
+                sta (screenl),y
+                dey
+                lda #$ff
+@2              sta (screenl),y
+                dey
+                bne @2
                 lda #$7e
                 sta (screenl),y
-                iny
-                lda #$7f
-@2              sta (screenl),y
-                iny
-                cpy #40
-                bne @2
                 inx
-                cpx #topHeight
+                cpx #scoreHeight
                 bne @1
 
-; fill solid green lines
+; fill solid white #$7F lines below score
 @3              lda hires_table_lo,x
                 sta screenl
                 lda hires_table_hi,x
                 sta screenh
-                ldy #0
-                lda #$2a
+                ldy #39
+                lda #$7f
 @4              sta (screenl),y
-                eor #$7f
-                iny
-                cpy #40
+                dey
                 bne @4
+                lda #$7e
+                sta (screenl),y
                 inx
-                cpx #topHeight+centerHeight
+                cpx #topHeight
                 bne @3
 
-; fill the first line with $80 black, for "vaporlock" detection,
+; fill solid green lines
+@5              lda hires_table_lo,x
+                sta screenl
+                lda hires_table_hi,x
+                sta screenh
+                ldy #39
+                lda #$55
+@6              sta (screenl),y
+                eor #$7f
+                dey
+                bpl @6
+                inx
+                cpx #topHeight+centerHeight
+                bne @5
+
+; fill the first line with $80 black for "vaporlock" detection,
 ;   and the rest with $00 black
                 lda #vaporlockBlack
-@5              ldy hires_table_lo,x
+@7              ldy hires_table_lo,x
                 sty screenl
                 ldy hires_table_hi,x
                 sty screenh
                 ldy #39
-@6              sta (screenl),y
+@8              sta (screenl),y
                 dey
-                bpl @6
+                bpl @8
                 lda #$00                ; normal black
                 inx
                 cpx #topHeight+centerHeight+bottomHeight
-                bne @5
-                rts
+                bne @7
+                jmp draw_logo
+
+clear_score     ldx #1
+@1              lda hires_table_lo,x
+                sta screenl
+                lda hires_table_hi,x
+                sta screenh
+                ldy #scoreLeft/7
+                lda #$ff
+@2              sta (screenl),y
+                iny
+                cpy #scoreLeft/7+19
+                bne @2
+                inx
+                cpx #scoreHeight
+                bne @1
+                jmp clear_digits
 
 ;---------------------------------------
 
-advance_logo    lda logo_offset
-                clc
-                adc #logoWidth
-                cmp #logoHeight*logoWidth
-                bne @1
-                lda #0
-@1              sta logo_offset
-                ; fall through
+; *** try moving to left of screen?
 
-draw_logo       lda logo_offset
-                sta offset
+draw_logo       ldy #128
+                lda bucket_count
+                bne @1
+                lda vblank_count
+                lsr
+                lsr
+                lsr
+                cmp #$10
+                bcs @1
+                ldy #0
+;               sec
+                sbc #$08-1
+                bcc @1
+                asl
+                asl
+                asl
+                asl
+                tay
+@1              cpy logo_offset
+                beq @4
+                sty logo_offset
+                sty offset
                 ldx #topHeight+centerHeight+1
-@1              stx linenum
+@2              stx linenum
                 lda hires_table_lo,x
                 sta screenl
                 lda hires_table_hi,x
                 sta screenh
                 ldy #logoLeft
                 ldx offset
-@2              lda logo_graphic,x
+@3              lda logo_graphic,x
                 sta (screenl),y
                 inx
                 iny
                 cpy #logoLeft+logoWidth
-                bne @2
-                cpx #logoWidth*logoHeight
                 bne @3
-                ldx #0
-@3              stx offset
+                stx offset
                 ldx linenum
                 inx
                 cpx #topHeight+centerHeight+1+7
-                bne @1
-                rts
+                bne @2
+@4              rts
 
-logo_graphic    .byte $00,$00,$00,$00,$a8,$d5,$aa,$81,$a8,$d5,$82,$00,$00,$00,$00   ; callavision
-                .byte $00,$00,$00,$00,$00,$00,$00,$81,$8a,$00,$00,$00,$00,$00,$00
-                .byte $00,$d4,$a8,$91,$a0,$c0,$8a,$c1,$82,$95,$a2,$c5,$a0,$00,$00
-                .byte $00,$84,$88,$91,$a0,$c0,$88,$d1,$88,$81,$a2,$c4,$a2,$00,$00
-                .byte $00,$84,$a8,$91,$a0,$c0,$8a,$95,$88,$95,$a2,$c4,$aa,$00,$00
-                .byte $00,$84,$88,$91,$a0,$c0,$88,$85,$88,$90,$a2,$c4,$a8,$00,$00
-                .byte $00,$d4,$88,$d1,$a2,$c5,$88,$81,$88,$95,$a2,$c5,$a0,$00,$00
-                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-                .byte $a8,$81,$00,$00,$00,$c0,$80,$90,$a0,$c0,$8a,$95,$aa,$c4,$80   ; copyright 2024
-                .byte $88,$80,$00,$00,$00,$00,$00,$90,$a8,$81,$88,$91,$a0,$c4,$80
-                .byte $88,$d0,$a2,$c5,$88,$c5,$a8,$d1,$a2,$c0,$8a,$91,$aa,$d4,$80
-                .byte $88,$90,$a2,$c4,$88,$c1,$88,$91,$a2,$c0,$80,$91,$82,$c0,$80
-                .byte $a8,$d1,$a2,$c5,$8a,$c1,$a8,$91,$a2,$c0,$8a,$95,$aa,$c0,$80
-                .byte $00,$00,$a0,$80,$88,$00,$80,$81,$00,$00,$00,$00,$00,$00,$00
-                .byte $00,$00,$a0,$c0,$8a,$00,$a8,$81,$00,$00,$00,$00,$00,$00,$00
-                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+logo_graphic    .byte $00,$00,$fe,$80,$00,$00,$00,$b0,$80,$8c,$98,$f0,$e7,$cf,$9f,$b3 ; copyright 2024
+                .byte $00,$00,$86,$80,$00,$00,$00,$80,$80,$8c,$fe,$80,$e6,$8c,$98,$b3
+                .byte $00,$00,$86,$fc,$f9,$b3,$e6,$b3,$fe,$fc,$99,$f0,$e7,$cc,$9f,$bf
+                .byte $00,$00,$86,$cc,$99,$b3,$e6,$b0,$e6,$cc,$99,$b0,$e0,$cc,$81,$b0
+                .byte $00,$00,$fe,$fc,$f9,$f3,$e7,$b0,$fe,$cc,$99,$f0,$e7,$cf,$9f,$b0
+                .byte $00,$00,$80,$80,$98,$80,$86,$80,$e0,$80,$00,$00,$00,$00,$00,$00
+                .byte $00,$00,$80,$80,$98,$f0,$87,$80,$fe,$80,$00,$00,$00,$00,$00,$00
+                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+                .byte $2a,$55,$2a,$55,$ff,$83,$80,$fc,$ff,$ff,$81,$fc,$ff,$83,$00,$00 ; callavision
+                .byte $aa,$d5,$aa,$d5,$83,$80,$80,$80,$80,$c0,$81,$8f,$80,$80,$00,$00
+                .byte $aa,$d5,$aa,$f5,$81,$fc,$99,$b0,$e0,$cf,$e1,$c3,$9f,$f3,$e7,$b0
+                .byte $54,$2a,$55,$6a,$80,$cc,$99,$b0,$e0,$cc,$f9,$cc,$81,$b3,$e6,$b3
+                .byte $aa,$d5,$aa,$b5,$80,$fc,$99,$b0,$e0,$cf,$9f,$cc,$9f,$b3,$e6,$bf
+                .byte $aa,$d5,$aa,$9d,$80,$cc,$99,$b0,$e0,$cc,$87,$8c,$98,$b3,$e6,$bc
+                .byte $d5,$aa,$d5,$fe,$bf,$cc,$f9,$f3,$e7,$cc,$81,$cc,$9f,$f3,$e7,$b0
+                .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 
 ;---------------------------------------
-
 ;
 ; pseudo random number generator,
 ;   taken verbatim from Kaboom VCS
@@ -776,6 +843,8 @@ random          lsr random_seed
                 ora #$40
                 sta random_seed
 @1              rts
+
+;---------------------------------------
 ;
 ; Modified version of Apple II monitor ROM code.
 ;   This pads the cycle count so it takes the same
@@ -816,14 +885,5 @@ read_paddle     lda $c070               ; trigger paddles
                 .include "bombs.s"
                 .include "buckets.s"
                 .include "score.s"
+                .include "flash.s"
                 .include "tables.s"
-
-; new Callavision graphic
-                ;{"x":70,"y":183,"width":112,"height":7}
-                ; hex 80502a55ff8380fcffff81fcff838080
-                ; hex 80d4aad58380808080c0818f80808080
-                ; hex 80d4aaf581fc99b0e0cfe1c39ff3e7b0
-                ; hex 802a556a80cc99b0e0ccf9cc81b3e6b3
-                ; hex 80d5aab580fc99b0e0cf9fcc9fb3e6bf
-                ; hex 80d5aabd80cc99b0e0cc878c98b3e6bc
-                ; hex c0aad5febfccf9f3e7cc81cc9ff3e7b0
