@@ -228,7 +228,61 @@ erase_bomber    lda prev_bomber_x
 @3              rts
 
 ; NOTE: bomber graphics are captured in column order
-; NOTE: these are currently just the smiling bomber
+
+apply_smile     ldx #0
+                beq apply_cmn           ; always
+apply_frown     ldx #6*7
+apply_cmn       lda smiles_frowns+2,x
+                cmp bomber_0+30+10
+                beq @4
+                lda #<bomber_0
+                sta ptr+0
+                lda #>bomber_0
+                sta ptr+1
+                lda #7
+                sta linenum             ; bomber frame index
+@1              lda #3
+                sta column              ; bomber column index
+                ldy #10
+@2              lda smiles_frowns,x
+                sta (ptr),y
+                inx
+                iny
+                lda smiles_frowns,x
+                sta (ptr),y
+                inx
+                dey
+                tya
+                clc
+                adc #30
+                tay
+                dec column
+                bne @2
+                lda ptr+0
+                clc
+                adc #128
+                sta ptr+0
+                bcc @3
+                inc ptr+1
+@3              dec linenum
+                bne @1
+@4              rts
+
+smiles_frowns   .byte $8b,$ab,$d1,$d4,$ff,$ff           ; smile 0
+                .byte $97,$d7,$a2,$a8,$ff,$ff           ; smile 1
+                .byte $af,$af,$c4,$d1,$fe,$fe           ; smile 2
+                .byte $df,$df,$88,$a2,$fd,$fd           ; smile 3
+                .byte $bf,$bf,$91,$c5,$fa,$fa           ; smile 4
+                .byte $ff,$ff,$a2,$8a,$f4,$f5           ; smile 5
+                .byte $ff,$ff,$c5,$95,$e8,$ea           ; smile 6
+
+                .byte $ab,$8b,$d4,$d1,$ff,$ff           ; frown 0
+                .byte $d7,$97,$a8,$a2,$ff,$ff           ; frown 1
+                .byte $af,$af,$d1,$c4,$fe,$fe           ; frown 2
+                .byte $df,$df,$a2,$88,$fd,$fd           ; frown 3
+                .byte $bf,$bf,$c5,$91,$fa,$fa           ; frown 4
+                .byte $ff,$ff,$8a,$a2,$f5,$f4           ; frown 5
+                .byte $ff,$ff,$95,$c5,$ea,$e8           ; frown 6
 
                 .align 256
 

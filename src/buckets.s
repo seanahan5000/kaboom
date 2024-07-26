@@ -115,7 +115,6 @@ bucket_procs_hi .byte >draw_1bucket
                 .byte >draw_3buckets
 
 draw_3buckets   sta @mod+1
-                ; set_page
 @1              lda bucket_bits,x
                 sta bucket_top_line0,y
                 sta bucket_mid_line0,y
@@ -146,7 +145,7 @@ draw_3buckets   sta @mod+1
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
 
                 lda bucket_bits,x
                 eor bucket_top_line0,y
@@ -224,7 +223,6 @@ draw_3buckets   sta @mod+1
                 rts
 
 draw_2buckets   sta @mod+1
-                ; set_page
 @1              lda bucket_bits,x
                 sta bucket_top_line0,y
                 sta bucket_mid_line0,y
@@ -255,7 +253,7 @@ draw_2buckets   sta @mod+1
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
 
                 lda bucket_bits,x
                 eor bucket_top_line0,y
@@ -333,7 +331,6 @@ draw_2buckets   sta @mod+1
                 rts
 
 draw_1bucket    sta @mod+1
-                ; set_page
 @1              lda bucket_bits,x
                 sta bucket_top_line0,y
                 sta clip_buffer,y
@@ -364,7 +361,7 @@ draw_1bucket    sta @mod+1
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
 
                 lda bucket_bits,x
                 eor bucket_top_line0,y
@@ -508,7 +505,6 @@ erase_buckets   ldy prev_bucket_xcol
                 lda #$2a
                 bcc @1
                 lda #$55
-                ; set_page
 @1              sta bucket_top_line0,y
                 sta bucket_mid_line0,y
                 sta bucket_bot_line0,y
@@ -537,7 +533,7 @@ erase_buckets   ldy prev_bucket_xcol
                 iny
                 dex
                 bne @1
-                ; check_page
+                same_page_as @1
                 ; fall through
 
 erase_splash_cols
@@ -556,7 +552,6 @@ erase_splash_cols
                 ; fall through
 
 erase_splash_top_cols
-                ; set_page
 @1              sta splash_top_line1,y
                 sta splash_top_line2,y
                 sta splash_top_line3,y
@@ -568,11 +563,10 @@ erase_splash_top_cols
                 iny
                 dex
                 bne @1
-                ; check_page
+                same_page_as @1
                 rts
 
 erase_splash_mid_cols
-                ; set_page
 @1              sta splash_mid_line1,y
                 sta splash_mid_line2,y
                 sta splash_mid_line3,y
@@ -584,11 +578,10 @@ erase_splash_mid_cols
                 iny
                 dex
                 bne @1
-                ; check_page
+                same_page_as @1
                 rts
 
 erase_splash_bot_cols
-                ; set_page
 @1              sta splash_bot_line1,y
                 sta splash_bot_line2,y
                 sta splash_bot_line3,y
@@ -600,12 +593,11 @@ erase_splash_bot_cols
                 iny
                 dex
                 bne @1
-                ; check_page
+                same_page_as @1
                 rts
 
 .macro splash_top _bits
                 sta @mod+1
-                ; set_page
                 clc
 @1              lda _bits+0,x
                 sta splash_top_line1,y
@@ -628,13 +620,12 @@ erase_splash_bot_cols
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
                 rts
 .endmacro
 
 .macro splash_mid _bits
                 sta @mod+1
-                ; set_page
                 clc
 @1              lda _bits+0,x
                 sta splash_mid_line1,y
@@ -657,13 +648,12 @@ erase_splash_bot_cols
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
                 rts
 .endmacro
 
 .macro splash_bot _bits
                 sta @mod+1
-                ; set_page
                 clc
 @1              lda _bits+0,x
                 sta splash_bot_line1,y
@@ -686,7 +676,7 @@ erase_splash_bot_cols
                 iny
 @mod            cpy #$ff
                 bcc @1
-                ; check_page
+                same_page_as @1
                 rts
 .endmacro
 
@@ -705,15 +695,21 @@ splash_procs    .word draw_splash_top_f0
                 .word draw_splash_bot_f2
                 .word draw_splash_bot_f3
 
+                .align 256
+
 draw_splash_top_f0  splash_top splash_f0
 draw_splash_top_f1  splash_top splash_f1
 draw_splash_top_f2  splash_top splash_f2
 draw_splash_top_f3  splash_top splash_f3
 
+                .res 32                 ; avoid branch page crossings
+
 draw_splash_mid_f0  splash_mid splash_f0
 draw_splash_mid_f1  splash_mid splash_f1
 draw_splash_mid_f2  splash_mid splash_f2
 draw_splash_mid_f3  splash_mid splash_f3
+
+                .res 32                 ; avoid branch page crossings
 
 draw_splash_bot_f0  splash_bot splash_f0
 draw_splash_bot_f1  splash_bot splash_f1

@@ -1,3 +1,15 @@
+; *** move this? ***
+data_addr_l     =   $50                 ; must be consecutive ->
+data_addr_h     =   $51
+code_ptr        =   $52
+code_ptr_h      =   $53
+table_ptr1      =   $54
+table_ptr1_h    =   $55
+table_ptr2      =   $56
+table_ptr2_h    =   $57                 ; <- in this order
+
+table_index     =   $58
+
 draw_bombs      ldy game_wave
                 lda wave_bomb_dy,y
                 sta bomb_dy
@@ -75,7 +87,7 @@ draw_bombs      ldy game_wave
 ; hit test bucket left/right
                 ldx bomb_index
                 lda bomb_columns,x
-                and #$7f
+                lsr
                 sta temp
                 tay
                 iny
@@ -115,12 +127,19 @@ draw_bombs      ldy game_wave
                 bpl @9
                 cld
                 bcc @10
-; clear buckets and pin score to 999999
+; clear buckets and bombs and pin score to 999999
                 sta bucket_count
+                sta splash_frame
+                ldx #7
+@99             sta bomb_frames,x
+                dex
+                bpl @99
                 lda #$99
                 sta score+0
                 sta score+1
                 sta score+2
+                rts
+
 ; check for score passing 1000
 @10             tya
                 eor score+1
@@ -132,11 +151,10 @@ draw_bombs      ldy game_wave
                 cpx #4
                 bcs @11
                 stx bucket_count
-@11
-; TODO: make award sound play
+@11             lda #$3f
+                sta bonus_sound
 
-@no_hit         ldy bomb_dy
-                jsr draw_bomb
+@no_hit         jsr draw_bomb
 
                 lda start_line
                 clc
@@ -150,7 +168,8 @@ draw_bombs      ldy game_wave
                 inx
                 cpx #8
                 beq @12
-                jmp @next_bomb          ;*** fixme
+; TODO: try to get this back to just a branch
+                jmp @next_bomb
 @12             rts
 
 explode_bombs   lda exp_bomb_index
@@ -168,11 +187,15 @@ explode_bombs   lda exp_bomb_index
                 jmp @2
 
 @1              jsr draw_top_bomb
-@2              lda bomb_vphase
+@2
+                lda #4
+                sta bomb_dy
+                lda bomb_vphase
                 sta start_line
                 clc
                 adc #bombPhaseDy
                 sta end_line
+
                 ldx #1
 @next_bomb      stx bomb_index
                 cpx #4
@@ -200,9 +223,7 @@ explode_bombs   lda exp_bomb_index
 
                 beq @5                  ; always
 
-@4              ldy #4
-                jsr draw_bomb
-
+@4              jsr draw_bomb
 @5              lda start_line
                 clc
                 adc #bombPhaseDy
@@ -215,26 +236,43 @@ explode_bombs   lda exp_bomb_index
                 cpx #8
                 bne @next_bomb
                 rts
-;
-; On entry:
-;   Y: bomb dy
-;
-draw_bomb       ldx bomb_index
-                lda bomb_columns,x
-                pha
-                lda bomb_frames,x
-                tax
-                lda bomb_offsets_l,x
-                clc
-                adc bomb_dy_offset,y
-                tax
-                pla
-                bmi @1
-                tay
-                jmp blit_bomb_l
-@1              and #$7f
-                tay
-                jmp blit_bomb_r
+
+; NOTE: table_ptr1+0 and table_ptr2+0 are still #$00 from init_bombs
+draw_bomb       ldx bomb_index          ; 3
+                lda bomb_columns,x      ; 4
+                lsr                     ; 2
+                sta @mod1+1             ; 4
+                rol                     ; 2
+                and #$3                 ; 2
+                ora #>table_buffer0_lo  ; 2
+                sta table_ptr1+1        ; 3
+                ora #$04                ; 2
+                sta table_ptr2+1        ; 3
+                ldy start_line          ; 3
+                lda (table_ptr1),y      ; 5
+                sta @mod2+1             ; 4
+                lda (table_ptr2),y      ; 5
+                sta @mod2+2             ; 4
+                ldy end_line            ; 3
+                lda (table_ptr1),y      ; 5
+                sta bomb_ptr            ; 3
+                lda (table_ptr2),y      ; 5
+                sta bomb_ptr_h          ; 3
+                ldy bomb_frames,x       ; 4
+                lda bomb_offsets,y      ; 4
+                ldy bomb_dy             ; 3
+                clc                     ; 2
+                adc bomb_dy_offset,y    ; 4
+                tax                     ; 2
+                ldy #0                  ; 2
+                lda #$60                ; 2 rts
+                sta (bomb_ptr),y        ; 6
+@mod1           ldy #$ff                ; 2
+@mod2           jsr $ffff               ; 6 + 6 rts
+                ldy #0                  ; 2
+                lda #$bd                ; 2 lda $ffff,x
+                sta (bomb_ptr),y        ; 6
+                rts                     ; 6 = 126 + lines * 20
 
 ; *** is it important to draw at same speed as bombs?
 ; *** how will this affect explosion sounds?
@@ -245,7 +283,7 @@ draw_bomb       ldx bomb_index
 ;
 draw_explode    sta linenum
                 lda bomb_columns,x
-                and #$7f
+                lsr
                 tay
                 dey
                 sty @mod1+1
@@ -293,6 +331,7 @@ draw_explode    sta linenum
                 bcs @3
 @mod4           cpx #$ff
                 bne @2
+                same_page_as @2
 @3              rts
 
 bucket_tops     .byte bucketTopY
@@ -303,35 +342,9 @@ bucket_bottoms  .byte bucketTopY+bucketHeight
                 .byte bucketMidY+bucketHeight
                 .byte bucketBotY+bucketHeight
 
-; *** 18 (15+3) lines between bombs ***
-; *** +2 lines for clipping ***
-; *** bombs are 15 lines high
-; *** top bomb at 28+3 registration
-
 ; 4550 cycles of vblank
 ; 650 cycles during logo
 
-; top line of each fuse at phase 0
-; 28
-; 46
-; 64
-; 82
-; 100
-; 118
-; ** *. .. 136
-; ** ** *. 154
-; (172)
-
-; top line of each fuse at phase 17
-; 45
-; 63
-; 81
-; 99
-; 117
-; ** *. .. 135
-; ** ** *. 153
-; ** ** .* 171
-; (189)
 
 ; splash0_line0   =   hiresLine133
 ; bucket0_line0   =   hiresLine141
@@ -347,19 +360,12 @@ wave_bomb_dy    .byte 1,1,2,2,3,3,4,4
 
 bomb_dy_offset  .byte 8,6,4,2,0         ; 2 bytes per line
 
-; *** combine these ***
-
-bomb_offsets_l  .byte bomb_lx_even-bombs_l_even
+; NOTE: offsets valid for even/odd and left/right
+bomb_offsets    .byte bomb_lx_even-bombs_l_even
                 .byte bomb_l0_even-bombs_l_even
                 .byte bomb_l1_even-bombs_l_even
                 .byte bomb_l2_even-bombs_l_even
                 .byte bomb_l3_even-bombs_l_even
-
-bomb_offsets_r  .byte bomb_rx_even-bombs_r_even
-                .byte bomb_r0_even-bombs_r_even
-                .byte bomb_r1_even-bombs_r_even
-                .byte bomb_r2_even-bombs_r_even
-                .byte bomb_r3_even-bombs_r_even
 
 ; 12 lines of bomb + 18 phase lines
 topBombLine0    :=  hiresLine31
@@ -394,9 +400,6 @@ topBombLine26   :=  hiresLine57
 topBombLine27   :=  hiresLine58
 topBombLine28   :=  hiresLine59
 topBombLine29   :=  hiresLine60
-
-column          :=  offset
-ptr             :=  screenl             ; screenh
 
 prev_bomb_phase .byte 0
 prev_bomb_col   .byte 0
@@ -519,32 +522,31 @@ erase_top_bomb  lda prev_bomb_col
 ;   5 lines of OR
 ;   7 lines of mask
 ;   (or 4 lines of mask, 3 lines of copy)
-;*** check this ***
-
+;
 draw_top_bomb   lda bomb_columns+0
-                tax
-                and #$7f
+                lsr
                 sta prev_bomb_col
                 sta column
-
-                ; *** choose data offset
-                ; *** even/odd/none
-                ; *** left/right
-                ldy #4
-                lda bomb_frames+0
-                beq @0
-                ldy #0
-                txa
-                bpl @0
-                iny
-@0              ldx top_offsets,y
+                ldy #4                  ; no bomb
+                ldx bomb_frames+0
+                beq @2
+                php
+                lsr
+                ldy #0                  ; even
+                bcc @1
+                ldy #2                  ; odd
+@1              plp
+                bcc @2
+                iny                     ; right fuse
+@2              lda column
+                ldx top_offsets,y
 
                 lda bomb_vphase
                 sta prev_bomb_phase
                 clc
                 adc #bomb0Top
 ;               clc
-                adc #2                ; 2 lines from top of phase
+                adc #2                  ; 2 lines from top of phase
                 tay
 ;               clc
                 adc #5
@@ -553,7 +555,7 @@ draw_top_bomb   lda bomb_columns+0
                 adc #7
                 sta @mod2+1
 
-@1              sty linenum
+@3              sty linenum
                 lda hires_table_lo,y
                 sta screenl
                 lda hires_table_hi,y
@@ -575,9 +577,10 @@ draw_top_bomb   lda bomb_columns+0
                 ldy linenum
                 iny
 @mod1           cpy #$ff
-                bne @1
+                bne @3
+                same_page_as @3
 
-@2              sty linenum
+@4              sty linenum
                 lda hires_table_lo,y
                 sta screenl
                 lda hires_table_hi,y
@@ -599,7 +602,8 @@ draw_top_bomb   lda bomb_columns+0
                 ldy linenum
                 iny
 @mod2           cpy #$ff
-                bne @2
+                bne @4
+                same_page_as @4
                 rts
 
 top_offsets     .byte 0,24,48,72,96
@@ -974,10 +978,10 @@ bomb_lx_odd     .byte $55,$2a
                 .byte $55,$2a
                 .byte $55,$2a
 
-bomb_l0_odd     .byte $2a,$55
-                .byte $2a,$55
-                .byte $2a,$55
-                .byte $2a,$55
+bomb_l0_odd     .byte $55,$2a
+                .byte $55,$2a
+                .byte $55,$2a
+                .byte $55,$2a
 
                 .byte $55,$2a
                 .byte $55,$2a
@@ -1053,6 +1057,11 @@ bomb_l3_odd     .byte $55,$2a
                 .byte $01,$20
                 .byte $05,$28
                 .byte $15,$2a
+
+                .byte $55,$2a
+                .byte $55,$2a
+                .byte $55,$2a
+                .byte $55,$2a
 
                 .align 256
 bombs_r_odd
@@ -1429,7 +1438,6 @@ explode_xx_odd  .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
                 .byte $55,$2a,$55,$2a
 
-
 ; 54 cycles per line
 ; 19 lines
 ; 8 bombs
@@ -1447,78 +1455,6 @@ explode_xx_odd  .byte $55,$2a,$55,$2a
 ; NOTE: There's very little cycle savings
 ;   in trimming end_line based on bomb_dy.
 
-;
-; On entry:
-;   X: offset into bomb data
-;   Y: dest column
-;   start_line: first bomb line
-;   end_line: last bomb line, exclusive
-;
-blit_bomb_l     sty @mod1+1             ; 4
-                ldy start_line          ; 3
-                lda table_buffer0_lo,y  ; 4
-                sta @mod2+1             ; 4
-                lda table_buffer0_hi,y  ; 4
-                sta @mod2+2             ; 4
-                ldy end_line            ; 3
-                lda table_buffer0_lo,y  ; 4
-                sta bomb_ptr            ; 3
-                lda table_buffer0_hi,y  ; 4
-                sta bomb_ptr_h          ; 3
-                ldy #0                  ; 2
-                lda #$60                ; 2 rts
-                sta (bomb_ptr),y        ; 6
-@mod1           ldy #$ff                ; 2
-@mod2           jsr $ffff               ; 6 + 6 rts
-                ldy #0                  ; 2
-                lda #$bd                ; 2 lda $ffff,x
-                sta (bomb_ptr),y        ; 6
-                rts                     ; = 74 + lines * 20
-
-blit_bomb_r     sty @mod1+1             ; 4
-                ldy start_line          ; 3
-                lda table_buffer1_lo,y  ; 4
-                sta @mod2+1             ; 4
-                lda table_buffer1_hi,y  ; 4
-                sta @mod2+2             ; 4
-                ldy end_line            ; 3
-                lda table_buffer1_lo,y  ; 4
-                sta bomb_ptr            ; 3
-                lda table_buffer1_hi,y  ; 4
-                sta bomb_ptr_h          ; 3
-                ldy #0                  ; 2
-                lda #$60                ; 2 rts
-                sta (bomb_ptr),y        ; 6
-@mod1           ldy #$ff                ; 2
-@mod2           jsr $ffff               ; 6 + 6 rts
-                ldy #0                  ; 2
-                lda #$bd                ; 2 lda $ffff,x
-                sta (bomb_ptr),y        ; 6
-                rts                     ; = 74 + lines * 20
-
-data_addr_l     =   $50                 ; must be consecutive ->
-data_addr_h     =   $51
-code_ptr        =   $52
-code_ptr_h      =   $53
-table_ptr1      =   $54
-table_ptr1_h    =   $55
-table_ptr2      =   $56
-table_ptr2_h    =   $57                 ; <- in this order
-
-table_index     =   $58
-
-table_buffer0_lo =  $4000
-table_buffer0_hi =  $4100
-code_buffer0    =   $4200
-
-table_buffer1_lo =  $5000
-table_buffer1_hi =  $5100
-code_buffer1    =   $5200
-clip_buffer     =   $5f00
-
-unroll_table    .word bombs_l_even,code_buffer0,table_buffer0_lo,table_buffer0_hi
-                .word bombs_r_even,code_buffer1,table_buffer1_lo,table_buffer1_hi
-
 ;               lda bomb_data,x         ; 4
 ;               sta bombLineN+0,y       ; 4
 ;               inx                     ; 2
@@ -1529,9 +1465,14 @@ unroll_table    .word bombs_l_even,code_buffer0,table_buffer0_lo,table_buffer0_h
 ; 20 cycles per bomb line
 ; 14 bytes of code per bomb line
 
+; generate bomb blitting code
 init_bombs      ldy #0                  ; table entry 0
                 jsr @unroll
                 ldy #8                  ; table entry 1
+                jsr @unroll
+                ldy #16                 ; table entry 2
+                jsr @unroll
+                ldy #24                 ; table entry 3
 @unroll         ldx #0
 @1              lda unroll_table,y
                 sta data_addr_l,x
@@ -1623,8 +1564,7 @@ init_bombs      ldy #0                  ; table entry 0
                 bcc @7
                 inc code_ptr_h
 @7              inx
-                ; TODO: limit this to the actual/exact number needed
-                cpx #bombsBottom+18+1
+                cpx #bombsBottom+7
                 beq @8
                 jmp @2
 
@@ -1638,6 +1578,11 @@ init_bombs      ldy #0                  ; table entry 0
                 lda code_ptr_h
                 sta (table_ptr2),y
                 rts
+
+unroll_table    .word bombs_l_even,code_buffer0,table_buffer0_lo,table_buffer0_hi
+                .word bombs_r_even,code_buffer1,table_buffer1_lo,table_buffer1_hi
+                .word bombs_l_odd, code_buffer2,table_buffer2_lo,table_buffer2_hi
+                .word bombs_r_odd, code_buffer3,table_buffer3_lo,table_buffer3_hi
 
 
                 ; .byte %................................

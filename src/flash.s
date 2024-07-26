@@ -91,6 +91,8 @@ flash_phase     .byte 2,1,0
                 .byte 2,1,0
                 .byte 2,1,0
 
+                .align 256              ; avoid branch page crossing
+
 flash_40        ldy #39
 @1              eor #$7f
                 sta hiresLine40,y
@@ -103,6 +105,7 @@ flash_40        ldy #39
                 sta hiresLine47,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_48        ldy #39
@@ -117,6 +120,7 @@ flash_48        ldy #39
                 sta hiresLine55,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_56        ldy #39
@@ -131,6 +135,7 @@ flash_56        ldy #39
                 sta hiresLine63,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_64        ldy #39
@@ -145,6 +150,7 @@ flash_64        ldy #39
                 sta hiresLine71,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_72        ldy #39
@@ -159,6 +165,7 @@ flash_72        ldy #39
                 sta hiresLine79,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_80        ldy #39
@@ -173,6 +180,7 @@ flash_80        ldy #39
                 sta hiresLine87,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_88        ldy #39
@@ -187,6 +195,7 @@ flash_88        ldy #39
                 sta hiresLine95,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_96        ldy #39
@@ -201,6 +210,7 @@ flash_96        ldy #39
                 sta hiresLine103,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_104       ldy #39
@@ -215,6 +225,7 @@ flash_104       ldy #39
                 sta hiresLine111,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_112       ldy #39
@@ -229,6 +240,7 @@ flash_112       ldy #39
                 sta hiresLine119,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_120       ldy #39
@@ -243,6 +255,7 @@ flash_120       ldy #39
                 sta hiresLine127,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_128       ldy #39
@@ -257,6 +270,7 @@ flash_128       ldy #39
                 sta hiresLine135,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_136       ldy #39
@@ -270,6 +284,7 @@ flash_136       ldy #39
                 sta hiresLine181,y      ; 1 line
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_149       ldy #39
@@ -284,6 +299,7 @@ flash_149       ldy #39
                 sta hiresLine156,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
 
 flash_165       ldy #39
@@ -298,7 +314,10 @@ flash_165       ldy #39
                 sta hiresLine172,y
                 dey
                 bpl @1
+                same_page_as @1
                 rts
+
+                .res 32                 ; avoid branch page crossing
 
 flash_top_bucket_141
                 ldy #39
@@ -348,6 +367,7 @@ flash_top_bucket_141
                 bcs @3
                 txa
                 bne @1                  ; always
+                same_page_as @1
 @4              txa
 @5              rts
 
@@ -402,8 +422,11 @@ flash_middle_bucket_157
                 bcs @3
                 txa
                 bne @1                  ; always
+                same_page_as @1
 @4              txa
 @5              rts
+
+                .res 32                 ; avoid branch page crossing
 
 flash_bottom_bucket_173
                 ldy #39
@@ -456,5 +479,6 @@ flash_bottom_bucket_173
                 bcs @3
                 txa
                 bne @1                  ; always
+                same_page_as @1
 @4              txa
 @5              rts

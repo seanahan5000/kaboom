@@ -331,7 +331,7 @@ B10C9   LDA bomber_colors,X             ; 4+    ; F0C9: BD 52 F6
 ; frown?
         LDA #%01101100                  ; 2     ; F0DB: A9 6C
 B10DD   BCS B10E7                       ; 2/3   ; F0DD: B0 08
-; "surprise"?
+; frown?
         LDA #%01101100                  ; 2     ; F0DF: A9 6C
         BIT $88                         ; 3     ; F0E1: 24 88
         BMI B10E7                       ; 2/3   ; F0E3: 30 02
@@ -1092,29 +1092,35 @@ J1596   ORA $99                         ; 3     ; F596: 05 99
 J159E   JSR random                      ; 6     ; F59E: 20 2E F6
         AND #$03                        ; 2     ; F5A1: 29 03
         TAX                             ; 2     ; F5A3: AA
+; disabled sound
         LDY #$00                        ; 2     ; F5A4: A0 00
         LDA tempActiveBombs             ; 3     ; F5A6: A5 88
         BEQ B15B2                       ; 2/3   ; F5A8: F0 08
+; play fuse burn sound
         TXA                             ; 2     ; F5AA: 8A
         LSR                             ; 2     ; F5AB: 4A
         ADC #$01                        ; 2     ; F5AC: 69 01
         STA audv0                       ; 3     ; F5AE: 85 19
+; white noise
         LDY #$08                        ; 2     ; F5B0: A0 08
 B15B2   LDA splashFrame                 ; 3     ; F5B2: A5 AF
         BEQ B15C5                       ; 2/3   ; F5B4: F0 0F
+; play bucket splash sound
+; white noise
         LDY #$08                        ; 2     ; F5B6: A0 08
         DEC splashFrame                 ; 5     ; F5B8: C6 AF
         CMP #$0F                        ; 2     ; F5BA: C9 0F
         BCC B15C2                       ; 2/3   ; F5BC: 90 04
+; "div 6 : pure tone"
         LDY #$0C                        ; 2     ; F5BE: A0 0C
         SBC playerWaveNum               ; 3     ; F5C0: E5 A2
 B15C2   TAX                             ; 2     ; F5C2: AA
         STY audv0                       ; 3     ; F5C3: 84 19
 B15C5
-; are bombs exploding?
         LDA expBombFrame                ; 3     ; F5C5: A5 AE
         BEQ B15D8                       ; 2/3   ; F5C7: F0 0F
 ; play bomb explosion sound
+; white noise
         LDY #$08                        ; 2     ; F5C9: A0 08
         LDX #$08                        ; 2     ; F5CB: A2 08
         ADC expBombIndex                ; 3     ; F5CD: 65 AC
@@ -1126,12 +1132,14 @@ B15D6   STA audv0                       ; 3     ; F5D6: 85 19
 B15D8
         LDA soundDuration               ; 3     ; F5D8: A5 B0
         BEQ B15E8                       ; 2/3   ; F5DA: F0 0C
+; play bonus bucket sound
         DEC soundDuration               ; 5     ; F5DC: C6 B0
         TAX                             ; 2     ; F5DE: AA
         LSR                             ; 2     ; F5DF: 4A
         LSR                             ; 2     ; F5E0: 4A
         BCC B15E4                       ; 2/3   ; F5E1: 90 01
         TAX                             ; 2     ; F5E3: AA
+; "div 6 : pure tone"
 B15E4   LDY #$0C                        ; 2     ; F5E4: A0 0C
         STY audv0                       ; 3     ; F5E6: 84 19
 B15E8   STX audf0                       ; 3     ; F5E8: 86 17
