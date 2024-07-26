@@ -68,8 +68,6 @@ bomberLine27    :=  hiresLine39
 bomberLine28    :=  hiresLine40
 bomberLine29    :=  hiresLine41
 
-; TODO (RPW65): parse macro args and
-;   ignore them in the macro body
 .macro bomber bits
                 sta @mod+1
 @1              lda bits,x

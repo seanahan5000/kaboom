@@ -20,23 +20,26 @@
 ;
 ;   Frame Total     17030 (262 * 65)
 
-;   Update score      775
-;   Erase bomber      574
-;   Erase top bomb    270
-;   Draw bomber      1088
-;   Draw top bomb     890
-;   Update bombs     4080
-;   Erase buckets    1052
-;   Draw buckets     1435
-;   Read paddle      2850
+;   Update score      794
+;   Erase bomber      543
+;   Erase top bomb    277
+;   Draw bomber      1099
+;   Update bombs     6316
+;  (Draw top bomb     928)
+;  (Erase buckets    1048)
+;   Draw buckets     1463
+;   Read paddle      3105
 ;   ---------------------
-;   Total           13014 (13500 measured)
+;   Total cycles   ~13600 (~14350 measured)
 
 ; TODO
 ; - test flash tearing in AppleWin etc.
 ; ? add white to explosion flash sequence
 ;   - (more code, flip eor or not)
 ; ? instruction screen - S: Select, R: Reset
+; ? consider moving bomb code guts into main loop
+; ? always add something to score for constant timing
+; ? always do full bomb/bucket hit test for constant timing
 
 .feature labels_without_colons
 ; .feature bracket_as_indirect
@@ -90,17 +93,18 @@ linenum         :=  $02
 column          :=  $03
 ptr             :=  $04
 ptr_h           :=  $05
+;
+;
+bucket_xcol     :=  $08
+bucket_xshift   :=  $09
+hit_xcol        :=  $0a
+hit_xshift      :=  $0b
+logo_offset     :=  $0c
+;
+screenl         :=  $0e
+screenh         :=  $0f
 
-bucket_xcol     :=  $1A                 ;*** don't save?
-bucket_xshift   :=  $1B                 ;*** don't save?
-hit_xcol        :=  $1C
-hit_xshift      :=  $1D
-logo_offset     :=  $1E
-
-screenl         :=  $24
-screenh         :=  $25
-
-; *** bomb code generation $50-$58
+; init_bombs uses $50-$58
 
 ; bombs variables
 ;
@@ -116,10 +120,7 @@ lmask           :=  $70
 rmask           :=  $71
 data_ptr        :=  $72
 data_ptr_h      :=  $73
-
-; *** move to "permanent" zpage
 cur_digits      :=  $74                 ; $74,$75,$76,$77,$78,$79
-; *** temporary buffer
 new_digits      :=  $7a                 ; $7a,$7b,$7c,$7d,$7e,$7f
 
                                         ; (start of init clear)
@@ -138,9 +139,9 @@ buckets_x       :=  $9d
 player_num      :=  $a0                 ; current player (0 or 1)
 
 player_state    :=  $a1
-bucket_count    :=  $a1
-game_wave       :=  $a2                 ; *** rename just "wave"?
-score           :=  $a3                 ; $a3,$a4,$a5
+player_buckets  :=  $a1
+player_wave     :=  $a2
+player_score    :=  $a3                 ; $a3,$a4,$a5
 
 other_state     :=  $a6
 other_buckets   :=  $a6
@@ -235,8 +236,6 @@ game_loop       lda exp_bomb_frame
                 jsr draw_buckets
                 jsr draw_logo
 
-; TODO: should paddle range be centered on screen?
-; TODO: can read_paddle be faster if end of range never needed?
 move_buckets    ldx player_num
                 jsr read_paddle
                 tya
@@ -260,8 +259,6 @@ move_buckets    ldx player_num
                 lda #bucketsMinX
 @common         sta buckets_x
 
-; *** compute bucket hit testing values here ***
-
                 inc vblank_count
 
 ; check for reset and select
@@ -283,7 +280,7 @@ start_game      jsr clear_screen
                 sta game_select
                 tay
                 iny
-                sty score+2
+                sty player_score+2
 
                 sta primary
                 sta fullscreen
@@ -299,12 +296,12 @@ reset           jsr clear_screen
                 sec
                 ror game_select
                 lda #3
-                sta bucket_count
+                sta player_buckets
                 sta other_buckets
 
 keys_checked    bit game_select
                 bpl @1
-                lda bucket_count
+                lda player_buckets
                 bne @2
 ; no buckets so idle
                 lda vblank_count
@@ -349,7 +346,7 @@ cont_explode    dec exp_bomb_frame
 @1              lda bonus_sound
                 bne @2
 ; take away a bucket
-                dec bucket_count
+                dec player_buckets
 @2
 ; does other player still have buckets?
                 lda other_buckets
@@ -376,13 +373,13 @@ swap_player     lda game_select         ; two players?
                 sta player_num
 
 ; decrement wave when player restarts
-next_wave       ldx game_wave
+next_wave       ldx player_wave
                 txa
                 beq @1
 ; give them half as many bombs to catch
 ; (set bombCount to half already caught)
                 dex
-                stx game_wave
+                stx player_wave
                 lda bombs_per_wave,x
                 lsr
                 clc
@@ -430,7 +427,7 @@ move_bomber     ldx bomber_dir
 ;   to keep consistent timing.
                 txa
                 asl
-                lda game_wave
+                lda player_wave
                 bcc @right
 @left           eor #$ff
                 clc
@@ -464,8 +461,6 @@ move_bomber     ldx bomber_dir
                 sta bomber_x
 @still
 
-;*** check for bomb being caught
-
 ; check for bomb missed
 check_bomb_missed
                 lda bomb_frames+7
@@ -498,7 +493,7 @@ update_bombs
                 bpl @1
 
 ; adjust bomb_phase by dy
-                ldy game_wave
+                ldy player_wave
                 lda bomb_vphase
                 clc
                 adc wave_bomb_dy,y
@@ -519,18 +514,18 @@ update_bombs
                 lda #0
                 sta bomb_frames+0
 
-                ldx game_wave
+                ldx player_wave
                 bit game_state
                 bvc @4
                 lda active_bombs
                 ora splash_frame
                 bne no_new_bomb
                 asl game_state
-                ldx game_wave
+                ldx player_wave
                 cpx #gameWaveMax
                 bcs @4
                 inx
-                stx game_wave
+                stx player_wave
 @4              txa
                 lsr
                 bcs @5
@@ -575,11 +570,11 @@ finish_field
 ;               jsr update_sound
 
 ; choose smile/frown for bomber
-update_mouth    lda score+0             ; frown if score >= 10000
+update_mouth    lda player_score+0             ; frown if score >= 10000
                 bne @1
                 lda exp_bomb_frame      ; smile if bombs exploding
                 bne @2
-                lda bucket_count        ; smile if out of buckets
+                lda player_buckets      ; smile if out of buckets
                 beq @2
 @1              jsr apply_frown
                 jmp @3
@@ -732,9 +727,9 @@ clear_screen    jsr sync
                 lda player_num
                 bne @1
                 lda #0
-                sta score+0
-                sta score+1
-                sta score+2
+                sta player_score+0
+                sta player_score+1
+                sta player_score+2
                 jsr draw_score
 @1              jsr erase_bomber
                 jsr erase_top_bomb
@@ -763,10 +758,10 @@ clear_screen    jsr sync
                 jsr draw_bombs
                 lda #0
                 sta splash_frame
-                lda bucket_count
+                lda player_buckets
                 beq @4
                 lda #3
-                sta bucket_count
+                sta player_buckets
 @4              jsr draw_buckets
 
                 lda player_num
@@ -801,7 +796,7 @@ clear_digits    ldx #5
 ;---------------------------------------
 
 draw_logo       ldy #128
-                lda bucket_count
+                lda player_buckets
                 bne @1
                 lda vblank_count
                 lsr
@@ -895,8 +890,6 @@ random          lsr random_seed
 ;   Y: paddle value (0-255)
 ;
 ; 2834 cycles maximum
-;
-; TODO: maybe just select a 140 count range within 0-255
 ;
 read_paddle     lda $c070               ; trigger paddles
                 ldy #$00                ; init count

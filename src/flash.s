@@ -75,7 +75,6 @@ flash_phase2    jsr flash_56
                 jsr flash_149
                 jmp flash_bottom_bucket_173
 
-; TODO: add whites to cycle
 flash_color     .byte $2a,$2a,$2a
                 .byte $d5,$d5,$d5
                 .byte $55,$55,$55
@@ -388,7 +387,7 @@ flash_middle_bucket_157
                 bmi @5
                 cpy right
                 bne @1
-@2              ldx bucket_count
+@2              ldx player_buckets
                 cpx #2
                 bcc @1
                 tax
@@ -445,7 +444,7 @@ flash_bottom_bucket_173
                 bmi @5
                 cpy right
                 bne @1
-@2              ldx bucket_count
+@2              ldx player_buckets
                 cpx #3
                 bcc @1
                 tax

@@ -134,7 +134,7 @@ saved_carry     .byte 0
                 bcc @32
 
                 sec
-                sbc game_wave
+                sbc player_wave
                 tax
                 lda #<tone6_buffer
                 ldy #>tone6_buffer

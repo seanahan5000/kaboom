@@ -13,7 +13,10 @@
       "**/obj": true,
       ".gitignore": true
     },
-    "rpw65.case.lowerCaseCompletions": true
+    "rpw65.case.lowerCaseCompletions": true,
+    "workbench.colorCustomizations": {
+      "editor.background": "#000000"
+    }
   },
   "tasks": {
     "version": "2.0.0",

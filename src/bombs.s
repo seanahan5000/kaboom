@@ -1,4 +1,4 @@
-; *** move this? ***
+
 data_addr_l     =   $50                 ; must be consecutive ->
 data_addr_h     =   $51
 code_ptr        =   $52
@@ -10,7 +10,7 @@ table_ptr2_h    =   $57                 ; <- in this order
 
 table_index     =   $58
 
-draw_bombs      ldy game_wave
+draw_bombs      ldy player_wave
                 lda wave_bomb_dy,y
                 sta bomb_dy
 
@@ -41,8 +41,6 @@ draw_bombs      ldy game_wave
 
 ; update bucket position to latest value
 ;   and compute right edge hit test values
-; *** changes here w/using bucket_xcol and bucket_xshift ***
-; *** move into main game loop?
                 lda buckets_x
                 asl
                 tax
@@ -62,16 +60,13 @@ draw_bombs      ldy game_wave
 @4              stx hit_xcol
                 sta hit_xshift
 @5
-; hit test bomb against buckets
-; *** (always do full hit test)
-
-; hit test bucket top/bottom
+; hit test bomb against bucket top/bottom
                 lda #bombsTop-bombMaxDy
                 clc
                 adc start_line
 ;               clc
                 adc bomb_dy
-                ldy bucket_count
+                ldy player_buckets
                 dey
                 cmp bucket_bottoms,y
                 bcs @no_hit
@@ -97,7 +92,6 @@ draw_bombs      ldy game_wave
                 cmp temp
                 bne @8
 ; allow a small amount of overlap
-; TODO: skip this if flame would touch?
                 lda hit_xshift
                 cmp #3
 @8              bcc @no_hit
@@ -109,49 +103,47 @@ draw_bombs      ldy game_wave
 
 @mod            lda #$ff
                 sta splash_bucket
-                lda #16                 ; *** tie to wave/speed?
+                lda #$10
                 sta splash_frame
 
 ; bump score by game_wave + 1
-; TODO: always add something for constant timing
-; TODO: consider moving all of this into main loop
                 sed
-                lda game_wave
+                lda player_wave
                 sec                     ; +1
                 ldx #2
-                ldy score+1
-@9              adc score,x
-                sta score,x
+                ldy player_score+1
+@9              adc player_score,x
+                sta player_score,x
                 lda #0
                 dex
                 bpl @9
                 cld
-                bcc @10
+                bcc @11
 ; clear buckets and bombs and pin score to 999999
-                sta bucket_count
+                sta player_buckets
                 sta splash_frame
                 ldx #7
-@99             sta bomb_frames,x
+@10             sta bomb_frames,x
                 dex
-                bpl @99
+                bpl @10
                 lda #$99
-                sta score+0
-                sta score+1
-                sta score+2
+                sta player_score+0
+                sta player_score+1
+                sta player_score+2
                 rts
 
 ; check for score passing 1000
-@10             tya
-                eor score+1
+@11             tya
+                eor player_score+1
                 and #$f0
                 beq @no_hit
 ; award extra bucket if possible
-                ldx bucket_count
+                ldx player_buckets
                 inx
                 cpx #4
-                bcs @11
-                stx bucket_count
-@11             lda #$3f
+                bcs @12
+                stx player_buckets
+@12             lda #$3f
                 sta bonus_sound
 
 @no_hit         jsr draw_bomb
@@ -167,10 +159,9 @@ draw_bombs      ldy game_wave
                 ldx bomb_index
                 inx
                 cpx #8
-                beq @12
-; TODO: try to get this back to just a branch
+                beq @13
                 jmp @next_bomb
-@12             rts
+@13             rts
 
 explode_bombs   lda exp_bomb_index
                 bne @1
@@ -208,20 +199,13 @@ explode_bombs   lda exp_bomb_index
 ; draw currently exploding bomb
                 lda exp_bomb_frame
                 cmp #$20
-                bcc @4
+                bcc @5
 
                 lda start_line
                 clc
                 adc #bombsTop
                 jsr draw_explode
-
-                ; *** should not be needed,
-                ; ***   but without, bomb flashes afterwards
-                ldx exp_bomb_index
-                lda #$00
-                sta bomb_frames,x
-
-                beq @5                  ; always
+                jmp @5
 
 @4              jsr draw_bomb
 @5              lda start_line
@@ -273,9 +257,6 @@ draw_bomb       ldx bomb_index          ; 3
                 lda #$bd                ; 2 lda $ffff,x
                 sta (bomb_ptr),y        ; 6
                 rts                     ; 6 = 126 + lines * 20
-
-; *** is it important to draw at same speed as bombs?
-; *** how will this affect explosion sounds?
 ;
 ; On entry:
 ;   A: top line

@@ -66,7 +66,6 @@ draw_buckets    ldy splash_bucket
                 ldy #1                  ; force middle bucket on splash_frame == 0
 @2              txa
                 ; 4 repeats per frame
-                ; TODO: tie this to wave/speed?
                 lsr
                 lsr
                 sta temp
@@ -91,7 +90,7 @@ draw_buckets    ldy splash_bucket
                 adc #bucketByteWidth-1
 @mod1           jsr $ffff
 
-                ldy bucket_count
+                ldy player_buckets
                 beq @3
                 lda bucket_procs_lo-1,y
                 sta @mod2+1

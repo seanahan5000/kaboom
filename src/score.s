@@ -19,7 +19,7 @@ draw_score
 ; expand score into new_digits buffer
                 ldx #0
                 ldy #0
-@1              lda score,y
+@1              lda player_score,y
                 iny
                 pha
                 lsr
