@@ -11,6 +11,6 @@
     }
   ],
   "preloads": [
-    { "bins": [{ "name": "kaboom.bin", "address": "0x6000" }] }
+    { "bins": [{ "name": "kaboom.bin", "address": "0x4000" }] }
   ]
 }

@@ -4,8 +4,8 @@
       "path": "."
     },
     {
-      "name": "kaboom/kaboom.dsk",
-      "uri": "dsk:/?file:///Users/sean/dev/kaboom/kaboom.dsk"
+      "name": "kaboom/graphics.dsk",
+      "uri": "dsk:/?file:///Users/sean/dev/kaboom/graphics.dsk"
     }
   ],
   "settings": {

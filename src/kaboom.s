@@ -33,13 +33,26 @@
 ;   Total cycles   ~13600 (~14350 measured)
 
 ; TODO
-; - test flash tearing in AppleWin etc.
+; - software sound work
+;   - test duty cycle limits
+;   - custom loop for fuse burn sound (double-click muting)
+;   - custom explosion sound (no cycle limit)
+;   - fix dbug sound problems
+; ? consider skipping frame updates to get more sound time
+; ? reconsider read paddle optimizations
+; - use vblank register on //e or later
+;   - add vblank register to dbug
+;   - (vaporlock on II+ only)
+; - fix tearing in dbug
 ; ? add white to explosion flash sequence
 ;   - (more code, flip eor or not)
-; ? instruction screen - S: Select, R: Reset
+; ? instruction screen
+;   - S: Select, R: Reset
+;   - Mockingboard (not) detected
 ; ? consider moving bomb code guts into main loop
 ; ? always add something to score for constant timing
 ; ? always do full bomb/bucket hit test for constant timing
+; - force reboot on reset (0$3xx value)
 
 .feature labels_without_colons
 ; .feature bracket_as_indirect
@@ -93,8 +106,8 @@ linenum         :=  $02
 column          :=  $03
 ptr             :=  $04
 ptr_h           :=  $05
-;
-;
+mb_ptr          :=  $06
+mb_ptr_h        :=  $07
 bucket_xcol     :=  $08
 bucket_xshift   :=  $09
 hit_xcol        :=  $0a
@@ -180,10 +193,10 @@ tone6_buffer    =   $1900
 noise9_buffer   =   $1A00
 
 ; bomb blitting code
-code_buffer0    =   $4000
-code_buffer1    =   $4800
-code_buffer2    =   $5000
-code_buffer3    =   $5800
+code_buffer0    =   $8000
+code_buffer1    =   $8800
+code_buffer2    =   $9000
+code_buffer3    =   $9800
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
@@ -198,7 +211,7 @@ pbutton0        :=  $C061
 
                 .include "hires.s"
 
-                .org $6000
+                .org $4000
 
 kaboom
 ; clear all variables
@@ -216,9 +229,16 @@ kaboom
                 lda #70
                 sta bomber_x
 
+                jsr init_sound
                 jsr init_bombs
-;               jsr init_sound
                 jsr init_screen
+                jsr draw_score
+                jsr draw_bomber
+
+                sta primary
+                sta fullscreen
+                sta hires
+                sta graphics
                 jmp start_game
 
 game_loop       lda exp_bomb_frame
@@ -281,11 +301,6 @@ start_game      jsr clear_screen
                 tay
                 iny
                 sty player_score+2
-
-                sta primary
-                sta fullscreen
-                sta hires
-                sta graphics
                 jmp keys_checked
 
 reset           jsr clear_screen
@@ -475,8 +490,6 @@ check_bomb_missed
 
 update_bombs
 ; randomize bomb frame and count active bombs
-                lda #0
-                sta active_bombs
                 ldx #7                  ; versus 8 in original
 @1              lda bomb_frames,x
                 beq @2
@@ -566,11 +579,13 @@ start_wave      lsr
                 sta bomb_columns+0
 no_new_bomb
 
-finish_field
-;               jsr update_sound
+finish_field    jsr update_sound
+
+                lda #0
+                sta active_bombs
 
 ; choose smile/frown for bomber
-update_mouth    lda player_score+0             ; frown if score >= 10000
+update_mouth    lda player_score+0      ; frown if score >= 10000
                 bne @1
                 lda exp_bomb_frame      ; smile if bombs exploding
                 bne @2
@@ -633,19 +648,19 @@ clear_vars      lda #0
 ;   value must be seen in order to distinguish active
 ;   scan matches from hsync and vsync.
 sync            lda #vaporlockBlack
-@1              cmp $c050               ; 4
+@1              cmp hires               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
-                cmp $c050               ; 4
+                cmp hires               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
-                cmp $c050               ; 4
+                cmp hires               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
-                cmp $c050               ; 4
+                cmp hires               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
-                cmp $c050               ; 4
+                cmp hires               ; 4
                 bne @1                  ; 2/3
                 rts
 
