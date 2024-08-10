@@ -32,30 +32,7 @@
 ;   ---------------------
 ;   Total cycles   ~13600 (~14350 measured)
 
-; TODO
-; - software sound work
-;   - test duty cycle limits
-;   - custom loop for fuse burn sound (double-click muting)
-;   - custom explosion sound (no cycle limit)
-;   - fix dbug sound problems
-; ? consider skipping frame updates to get more sound time
-; ? reconsider read paddle optimizations
-; - use vblank register on //e or later
-;   - add vblank register to dbug
-;   - (vaporlock on II+ only)
-; - fix tearing in dbug
-; ? add white to explosion flash sequence
-;   - (more code, flip eor or not)
-; ? instruction screen
-;   - S: Select, R: Reset
-;   - Mockingboard (not) detected
-; ? consider moving bomb code guts into main loop
-; ? always add something to score for constant timing
-; ? always do full bomb/bucket hit test for constant timing
-; - force reboot on reset (0$3xx value)
-
 .feature labels_without_colons
-; .feature bracket_as_indirect
 
 .macro same_page_as arg
     .if ((* - 1) / 256) <> (arg / 256)
@@ -113,10 +90,12 @@ bucket_xshift   :=  $09
 hit_xcol        :=  $0a
 hit_xshift      :=  $0b
 logo_offset     :=  $0c
-;
-screenl         :=  $0e
-screenh         :=  $0f
-
+screenl         :=  $0d
+screenh         :=  $0e
+machine_type    :=  $0f                 ; %00000000 II/II+
+                                        ; %10000000 IIe or newer
+                                        ; %11000000 IIc
+                                        ; %10000001 IIgs
 ; init_bombs uses $50-$58
 
 ; bombs variables
@@ -188,10 +167,6 @@ table_buffer3_hi =  $1700
 ; bomb and bucket clipping buffer
 clip_buffer     =   $1800
 
-; sound pattern buffers
-tone6_buffer    =   $1900
-noise9_buffer   =   $1A00
-
 ; bomb blitting code
 code_buffer0    =   $8000
 code_buffer1    =   $8800
@@ -200,20 +175,19 @@ code_buffer3    =   $9800
 
 keyboard        :=  $C000
 unstrobe        :=  $C010
-click           :=  $C030
 graphics        :=  $C050
-text            :=  $C051
 fullscreen      :=  $C052
 primary         :=  $C054
-secondary       :=  $C055
 hires           :=  $C057
 pbutton0        :=  $C061
+vblank          :=  $C02E
 
                 .include "hires.s"
 
                 .org $4000
 
-kaboom
+kaboom          jsr init_machine
+
 ; clear all variables
                 lda #0
                 ldx #$42
@@ -225,7 +199,7 @@ kaboom
                 lda #$ff
                 sta logo_offset
 
-; center bomber instead of on left like original game
+; center bomber instead of placing on left like original game
                 lda #70
                 sta bomber_x
 
@@ -579,9 +553,7 @@ start_wave      lsr
                 sta bomb_columns+0
 no_new_bomb
 
-finish_field    jsr update_sound
-
-                lda #0
+finish_field    lda #0
                 sta active_bombs
 
 ; choose smile/frown for bomber
@@ -595,7 +567,8 @@ update_mouth    lda player_score+0      ; frown if score >= 10000
                 jmp @3
 @2              jsr apply_smile
 @3
-                jsr sync
+                jsr vsync
+                jsr update_sound
                 jmp game_loop
 
 bombs_per_wave  .byte 9
@@ -643,11 +616,33 @@ clear_vars      lda #0
 
 ;---------------------------------------
 
+init_machine    ldx #%00000000          ; II/II+
+                lda $fbb3
+                cmp #$06                ; IIe or later
+                bne @1
+                ldx #%11000000          ; IIc
+                lda $fbc0
+                beq @1
+                ldx #%10000000
+                lda $fe1f
+                cmp #$60                ; rts
+                beq @1
+                ldx #%10000001          ; IIgs
+@1              stx machine_type
+; force reboot on reset since zpage and DOS 3.3 get altered
+                lda #0
+                sta $03f2
+                sta $03f3
+                rts
+
+;---------------------------------------
+
 ; Sync to line just before CallaVision logo using
 ;   vaporlock method.  Note that 5 matches of magic
 ;   value must be seen in order to distinguish active
 ;   scan matches from hsync and vsync.
-sync            lda #vaporlockBlack
+
+vsync           lda #vaporlockBlack
 @1              cmp hires               ; 4
                 bne @1                  ; 2/3
                 nop                     ; 2
@@ -738,7 +733,7 @@ init_screen
                 jmp clear_digits
 
 ; remove everything on the screen related to the current game
-clear_screen    jsr sync
+clear_screen    jsr vsync
                 lda player_num
                 bne @1
                 lda #0

@@ -63,11 +63,8 @@ MB_6522_ORANH   =   $0F                 ; #1 port a data no handshake
 
 ;-------------------------------------------------------------------------------
 
-init_sound      lda $fbb3
-                cmp #6                  ; 6 on IIe and newer
-                bne @1
-                lda $fbc0
-                bne @1                  ; 0 on IIc
+init_sound      bit machine_type
+                bvc @1
 ; enable IIc mockingboard
                 lda #$ff
                 sta $c403
@@ -76,7 +73,8 @@ init_sound      lda $fbb3
                 sta mb_ptr
                 lda #$c7
                 sta mb_ptr_h
-                ldy #4                  ;*** constant?
+; detect mockingboard
+                ldy #4
 @2              ldx #2
 @3              lda (mb_ptr),y
                 sta temp                ; 3
@@ -87,14 +85,13 @@ init_sound      lda $fbb3
                 bne @4
                 dex
                 bne @3
-                beq @5                  ; always
+                beq mb_init             ; always
 @4              dec mb_ptr_h
                 lda mb_ptr_h
                 cmp #$c0
                 bne @2
                 dec mb_ptr              ; not found
-                jmp init_sound_sw
-@5
+                rts
 
 mb_init         lda #$ff                ; all output
                 ldy #MB_6522_DDRB1
@@ -128,8 +125,8 @@ mb_clear        ldx #13
 ; On exit:
 ;   X: unchanged
 ;
-mb_write        ;ldy mb_ptr
-                ;bne @no_sound
+mb_write        ldy mb_ptr
+                bne @no_sound
 
                 pha
                 txa
@@ -175,11 +172,7 @@ mb_write        ;ldy mb_ptr
 ;   divider value from the Atari needs to be incremented by 1 to
 ;   get the same pitch on the Mockingboard.
 
-update_sound    lda mb_ptr
-                beq update_sound_mb
-                jmp update_sound_sw
-
-update_sound_mb
+update_sound
 
 ; play bonus bucket sound (highest priority)
 ;
@@ -204,11 +197,14 @@ update_sound_mb
                 tax
 @1              txa
                 and #$1f                ; original assumes bits 7:5 ignored
+                asl
                 tax
-                lda tone6_table,x
+                lda tone6_table+1,x
+                pha
+                lda tone6_table+0,x
                 ldx #REG_AY_A_FINE_TONE
                 jsr mb_write
-                lda #0
+                pla
                 ldx #REG_AY_A_COARSE_TONE
                 jsr mb_write
                 ldx #REG_AY_A_VOLUME
@@ -240,14 +236,14 @@ update_sound_mb
 ; if (exp_bomb_frame + exp_bomb_index < #$20)
                 lsr
                 jsr mb_write            ; volume = (exp_bomb_frame + exp_bomb_index) >> 1
-                lda #$1F                ; noise freq = #$1F (no MB +1 adjust)
+                ldx #$1F                ; noise freq = #$1F
                 bne @4                  ; always
 
 ; else (exp_bomb_frame + exp_bomb_index >= #$20)
 @3              jsr mb_write            ; volume = exp_bomb_frame + exp_bomb_index
-                lda #$08+1              ; noise freq = #$08 + MB adjust
-
-@4              ldx #REG_AY_NOISE
+                ldx #$08                ; noise freq = #$08
+@4              lda noise_table,x
+                ldx #REG_AY_NOISE
                 jsr mb_write
                 ldx #REG_AY_ENABLE
                 lda #$37
@@ -274,11 +270,14 @@ update_sound_mb
 ; if splash_frame >= #$0F
                 sec
                 sbc player_wave
+                asl
                 tax
-                lda tone6_table,x
+                lda tone6_table+1,x
+                pha
+                lda tone6_table+0,x
                 ldx #REG_AY_A_FINE_TONE
                 jsr mb_write            ; tone freq = splash_frame - game_wave
-                lda #0
+                pla
                 ldx #REG_AY_A_COARSE_TONE
                 jsr mb_write
                 ldx #REG_AY_A_VOLUME
@@ -289,9 +288,9 @@ update_sound_mb
                 JMP mb_write            ; enable tone channel A
 
 ; if splash_frame < #$0F
-@6              ldx #REG_AY_NOISE
-                clc
-                adc #1                  ; +1 MB adjust
+@6              tax
+                lda noise_table,x
+                ldx #REG_AY_NOISE
                 jsr mb_write            ; noise pitch = splash_frame
                 ldx #REG_AY_A_VOLUME
                 lda #$08
@@ -312,9 +311,9 @@ update_sound_mb
                 jsr random
                 and #$03
                 pha
+                tax
+                lda noise_table,x
                 ldx #REG_AY_NOISE
-                clc
-                adc #1                  ; +1 MB adjust
                 jsr mb_write            ; noise freq = rnd_0123
                 pla
                 lsr
@@ -330,596 +329,49 @@ update_sound_mb
                 lda #$3f                ; disable all channels
                 jmp mb_write
 
-; *** PITCHES STILL SEEM WRONG ***
-tone6_table     .byte 6*1+1             ; +1 MB adjust
-                .byte 6*2+1
-                .byte 6*3+1
-                .byte 6*4+1
-                .byte 6*5+1
-                .byte 6*6+1
-                .byte 6*7+1
-                .byte 6*8+1
-                .byte 6*9+1
-                .byte 6*10+1
-                .byte 6*11+1
-                .byte 6*12+1
-                .byte 6*13+1
-                .byte 6*14+1
-                .byte 6*15+1
-                .byte 6*16+1
-                .byte 6*17+1
-                .byte 6*18+1
-                .byte 6*19+1
-                .byte 6*20+1
-                .byte 6*21+1
-                .byte 6*22+1
-                .byte 6*23+1
-                .byte 6*24+1
-                .byte 6*25+1
-                .byte 6*26+1
-                .byte 6*27+1
-                .byte 6*28+1
-                .byte 6*29+1
-                .byte 6*30+1
-                .byte 6*31+1
-                .byte 6*32+1
+tone6_table     .word 6*1*2             ; *2 MB adjust
+                .word 6*2*2
+                .word 6*3*2
+                .word 6*4*2
+                .word 6*5*2
+                .word 6*6*2
+                .word 6*7*2
+                .word 6*8*2
+                .word 6*9*2
+                .word 6*10*2
+                .word 6*11*2
+                .word 6*12*2
+                .word 6*13*2
+                .word 6*14*2
+                .word 6*15*2
+                .word 6*16*2
+                .word 6*17*2
+                .word 6*18*2
+                .word 6*19*2
+                .word 6*20*2
+                .word 6*21*2
+                .word 6*22*2
+                .word 6*23*2
+                .word 6*24*2
+                .word 6*25*2
+                .word 6*26*2
+                .word 6*27*2
+                .word 6*28*2
+                .word 6*29*2
+                .word 6*30*2
+                .word 6*31*2
+                .word 6*32*2
+
+; (x + 1) * 2 - 1
+noise_table     .byte 1,3,5,7,9
+                .byte 11,13,15,17,19
+                .byte 21,23,25,27,29
+                .byte 31,33,35,37,39
+                .byte 41,43,45,47,49
+                .byte 51,53,55,57,59
+                .byte 61,63
 
 ;-------------------------------------------------------------------------------
-
-value           :=  temp
-lfsr            :=  offset
-lfsr_hi         :=  column
-
-init_sound_sw
-; 9-bit lfsr noise (mode $8)
-                lda #$ff
-                sta lfsr
-                lda #$01
-                sta lfsr_hi
-                ldx #0
-@1              ldy #8
-@2              lsr lfsr_hi
-                lda lfsr
-                ror lfsr
-                rol value
-                and #%00010001
-                beq @3
-                cmp #%00010001
-                beq @3
-                lda #$01
-                sta lfsr_hi
-@3              dey
-                bne @2
-                lda value
-                sta noise9_buffer,x
-                inx
-                bne @1
-
-; 6-bit tone (mode $C)
-                ldx #0
-                ldy #0
-@4              lda @pattern6,y
-                sta tone6_buffer,x
-                iny
-                cpy #3
-                bne @5
-                ldy #0
-@5              inx
-                bne @4
-                rts
-
-@pattern6       .byte %11100011
-                .byte %10001110
-                .byte %00111000
-
-; ***
-                ; ldx #4
-                ; lda #<tone6_buffer
-                ; ldy #>tone6_buffer
-                ; jsr play_sound
-                ; sta saved_data
-                ; sty saved_index
-                ; ror
-                ; sta saved_carry
-
-;***
-;                 ldx #18
-; @1              cmp click
-;                 jsr wait_64
-;                 jsr wait_32
-;                 cmp click
-;                 jsr wait_64
-;                 jsr wait_32
-;                 dex
-;                 bne @1
-;                 rts
-
-; saved_mode      .byte 0
-saved_data      .byte 0
-saved_index     .byte 0
-saved_carry     .byte 0
-; ***
-
-                .align 256              ;***
-
-update_sound_sw
-
-; play bonus bucket sound (highest priority)
-;
-; bonus_sound ($3F -> $01)
-;
-; control = "div 6 : pure tone"
-; if (bonus_sound & 2)
-;     freq = bonus_sound >> 2
-; else
-;     freq = bonus_sound
-; volume = #$0C
-;
-                lda bonus_sound
-                beq @2
-                dec bonus_sound
-                tax                     ; tone6 freq = bonus_sound
-                and #2
-                beq @1
-                txa                     ; if (bonus_sound & 2)
-                lsr                     ;   tone6 freq = bonus_sound >> 2
-                lsr
-                tax
-@1              txa
-                and #$1f                ; original assumes bits 7:5 ignored
-                tax
-                lda #<tone6_buffer
-                ldy #>tone6_buffer
-                bne play_sound_sw       ; always
-
-; play bomb explosion sound
-;
-; exp_bomb_frame ($2B-1 -> $01), ($20-1 -> $01)
-;
-; control = white noise
-; if (exp_bomb_frame + exp_bomb_index < #$20)
-;     volume = (exp_bomb_frame + exp_bomb_index) >> 1
-;     freq = #$1F
-; else
-;     volume = exp_bomb_frame + exp_bomb_index
-;     freq = #$08
-;
-@2              lda exp_bomb_frame
-                beq @4
-                ldx #$1f
-                cmp #$20
-                bcc @3
-                ldx #$08
-@3              lda #<noise9_buffer
-                ldy #>noise9_buffer
-                bne play_sound_sw       ; always
-
-; play bucket splash sound
-;
-; splash_frame ($10 -> $01)
-;
-; if (splash_frame >= $0F)
-;   control = "div 6 : pure tone"
-;   freq = splash_frame - game_wave
-;   volume = 12
-; else
-;   control = white noise
-;   freq = splash_frame
-;   volume = 8
-;
-@4              lda splash_frame
-                beq @5
-;               dec splash_frame        ; TODO: move out of buckets?
-                cmp #$0F
-                bcc @32
-; if splash_frame >= #$0F
-                sec
-                sbc player_wave
-                tax
-                lda #<tone6_buffer
-                ldy #>tone6_buffer
-                bne play_sound_sw       ; always
-
-; if splash_frame < #$0F
-@32             tax
-                lda #<noise9_buffer
-                ldy #>noise9_buffer
-                bne play_sound_sw       ; always
-
-; play active bomb fuse burn sound
-;
-; rnd_0123 = random & 3
-; control = white noise
-; freq = rnd_0123
-; volume = rnd_0123 >> 1
-;
-@5              lda active_bombs
-                beq @6
-                jsr random              ;*** always for consistent timing?
-                and #$03
-                tax
-                lsr
-                beq @6                  ; volume == 0 is silent
-                lda #<noise9_buffer
-                ldy #>noise9_buffer
-                bne play_sound_sw       ; always
-
-; no sound active
-;
-@6
-; *** if nothing played, reset speaker state?
-                rts
-
-play_sound_sw   sta ptr
-                sty ptr_h
-                txa
-                cmp #16
-                bcc @0
-                lda #15                 ; *** skip low frequencies
-@0              tay
-                asl
-                tax
-                lda freq_delays+0,x
-                sta wait_cycles+1
-                lda freq_delays+1,x
-                sta wait_cycles+2
-
-                ldx sample_counts,y
-
-                ldy saved_index
-                bne @have_data
-
-                bit saved_carry
-                bpl @more_data_off
-                bmi @more_data_on       ; always
-
-@have_data      lda saved_data
-                bit saved_carry
-                bmi @still_off
-                ; bpl @still_on
-
-@still_on       nop                     ; 2
-@loop_on        ; no click
-                nop                     ; 2
-                nop                     ; 2
-                dex                     ; 2
-                beq @done_on            ; 2
-                asl                     ; 2
-                beq @more_data_on       ; 2/3
-                bcc @now_off            ; 2/3
-                jsr wait_cycles         ; 15
-                jmp @loop_on            ; 3
-
-@now_off        jsr wait_cycles         ; 15
-                nop                     ; 2
-@now_off2       cmp click               ; 4
-                cmp click               ;***
-                dex                     ; 2
-                beq @done_off           ; 2
-                asl                     ; 2
-                beq @more_data_off      ; 2/3
-                bcs @now_on             ; 2/3
-                jsr wait_cycles         ; 15
-                jmp @loop_off           ; 3
-
-@more_data_off  lda (ptr),y             ; 5   no page cross
-                iny                     ; 2
-                stx temp                ; 3
-                sec                     ; 2
-                rol                     ; 2
-                bcc @still_off          ; 2/3
-                jmp @now_on2            ; 3
-
-@done_off       clc
-
-                sta saved_data          ;***
-                sty saved_index
-                ror
-                sta saved_carry         ;***
-
-                rts
-
-@still_off      nop                     ; 2
-@loop_off       ; no click
-                nop                     ; 2
-                nop                     ; 2
-                dex                     ; 2
-                beq @done_off           ; 2
-                asl                     ; 2
-                beq @more_data_off      ; 2/3
-                bcs @now_on             ; 2/3
-                jsr wait_cycles         ; 15
-                jmp @loop_off           ; 3
-
-@now_on         jsr wait_cycles         ; 15
-                nop                     ; 2
-@now_on2        cmp click               ; 4
-                cmp click               ;***
-                dex                     ; 2
-                beq @done_on            ; 2
-                asl                     ; 2
-                beq @more_data_on       ; 2/3
-                bcc @now_off            ; 2/3
-                jsr wait_cycles         ; 15
-                jmp @loop_on            ; 3
-
-@more_data_on   lda (ptr),y             ; 5   no page cross
-                iny                     ; 2
-                stx temp                ; 3
-                sec                     ; 2
-                rol                     ; 2
-                bcs @still_on           ; 2/3
-                jmp @now_off2           ; 3
-
-@done_on        sec
-
-                sta saved_data          ;***
-                sty saved_index
-                ror
-                sta saved_carry         ;***
-                rts
-
-;***               same_page_as @still_on
-
-freq_delays     .word wait_32_8
-                .word wait_65_7
-                .word wait_98_6
-                .word wait_131_5
-                .word wait_164_4
-                .word wait_197_2
-                .word wait_230_1
-                .word wait_263_0
-                .word wait_295_9
-                .word wait_328_8
-                .word wait_361_6
-                .word wait_394_5
-                .word wait_427_4
-                .word wait_460_3
-                .word wait_493_2
-                .word wait_526_0
-
-sound_cycles    =   3000
-sample_counts   .byte sound_cycles/32
-                .byte sound_cycles/65
-                .byte sound_cycles/98
-                .byte sound_cycles/131
-                .byte sound_cycles/164
-                .byte sound_cycles/197
-                .byte sound_cycles/230
-                .byte sound_cycles/263
-                .byte sound_cycles/295
-                .byte sound_cycles/328
-                .byte sound_cycles/361
-                .byte sound_cycles/394
-                .byte sound_cycles/427
-                .byte sound_cycles/460
-                .byte sound_cycles/493
-                .byte sound_cycles/526
-
-                                        ; 6 (jsr)
-wait_cycles     jmp $ffff               ; 3  modified
-
-.macro delay_2
-                nop                     ; 2
-.endmacro
-
-.macro delay_3
-                stx temp                ; 3
-.endmacro
-
-.macro delay_4
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_5
-                stx temp                ; 3
-                nop                     ; 2
-.endmacro
-
-.macro delay_6
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_7
-                pha                     ; 3
-                pla                     ; 4
-.endmacro
-
-.macro delay_8
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_9
-                pha                     ; 3
-                pla                     ; 4
-                nop                     ; 2
-.endmacro
-
-.macro delay_10
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_11
-                pha                     ; 3
-                pla                     ; 4
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_12
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_13
-                pha                     ; 3
-                pla                     ; 4
-                nop                     ; 2
-                nop                     ; 2
-                nop                     ; 2
-.endmacro
-
-.macro delay_14
-                pha                     ; 3
-                pla                     ; 4
-                pha                     ; 3
-                pla                     ; 4
-.endmacro
-
-.macro delay_17
-                pha                     ; 3
-                pla                     ; 4
-                pha                     ; 3
-                pla                     ; 4
-                stx temp                ; 3
-.endmacro
-
-; - 17 cycles of overhead in sound loop
-; - 15 cycles of overhead calling wait_cycles and returning
-
-; 32 - 32 = 0
-wait_32_8       rts
-
-; 65 - 32 = 33
-wait_65_7       jsr wait_16
-                delay_17
-                rts
-
-; 98 - 32 = 66
-wait_98_6       jsr wait_64
-                delay_2
-                rts
-
-; 131 - 32 = 99
-wait_131_5      jsr wait_64
-                jsr wait_32
-                delay_3
-                rts
-
-; 164 - 32 = 132
-wait_164_4      jsr wait_128
-                delay_4
-                rts
-
-; 197 - 32 = 165
-wait_197_2      jsr wait_128
-                jsr wait_32
-                delay_5
-                rts
-
-; 230 - 32 = 198
-wait_230_1      jsr wait_128
-                jsr wait_64
-                delay_6
-                rts
-
-; 263 - 32 = 231
-wait_263_0      jsr wait_128
-                jsr wait_64
-                jsr wait_32
-                delay_7
-                rts
-
-; 295 - 32 = 263
-wait_295_9      jsr wait_256
-                delay_7
-                rts
-
-; 328 - 32 = 296
-wait_328_8      jsr wait_256
-                jsr wait_32
-                delay_8
-                rts
-
-; 361 - 32 = 329
-wait_361_6      jsr wait_256
-                jsr wait_64
-                delay_9
-                rts
-
-; 394 - 32 = 362
-wait_394_5      jsr wait_256
-                jsr wait_64
-                jsr wait_32
-                delay_10
-                rts
-
-; 427 - 32 = 395
-wait_427_4      jsr wait_256
-                jsr wait_128
-                delay_11
-                rts
-
-; 460 - 32 = 428
-wait_460_3      jsr wait_256
-                jsr wait_128
-                jsr wait_32
-                delay_12
-                rts
-
-; 493 - 32 = 461
-wait_493_2      jsr wait_256
-                jsr wait_128
-                jsr wait_64
-                delay_13
-                rts
-
-; 526 - 32 = 494
-wait_526_0      jsr wait_256
-                jsr wait_128
-                jsr wait_64
-                jsr wait_32
-                delay_14
-                rts
-
-wait_256        jsr wait_128
-wait_128        jsr wait_64
-wait_64         jsr wait_32
-wait_32         jsr wait_16
-wait_16         nop                     ; 2
-                nop                     ; 2
-                rts                     ; 6
-
-; base cyles
-;   1023000 / 31113.1 = 32.88
-
-; frequency divided
-;
-;   0: 1023000 / 31113.1 * 1 = 32.88
-;   1: 1023000 / 31113.1 * 2 = 65.76
-;   2: 1023000 / 31113.1 * 3 = 98.64
-;   3: 1023000 / 31113.1 * 4 = 131.52
-;
-;   4: 1023000 / 31113.1 * 5 = 164.40
-;   5: 1023000 / 31113.1 * 6 = 197.28
-;   6: 1023000 / 31113.1 * 7 = 230.16
-;   7: 1023000 / 31113.1 * 8 = 263.04
-;   8: 1023000 / 31113.1 * 9 = 295.92
-;   9: 1023000 / 31113.1 * 10 = 328.80
-;  10: 1023000 / 31113.1 * 11 = 361.68
-;  11: 1023000 / 31113.1 * 12 = 394.56
-;  12: 1023000 / 31113.1 * 13 = 427.44
-;  13: 1023000 / 31113.1 * 14 = 460.32
-;  14: 1023000 / 31113.1 * 15 = 493.20
-;  15: 1023000 / 31113.1 * 16 = 526.08
-;
-; *** 16 -> 30 ***
-;
-;  31: 1023000 / 31113.1 * 32 = 1052.16
 
 ;   15      AUDC0   ....1111  audio control 0
 ;   16      AUDC1   ....1111  audio control 1
@@ -952,10 +404,6 @@ wait_16         nop                     ; 2
 ;   1A      AUDV1   ....1111  audio volume 1
 ;
 ; Bit 0-3, Volume 0-15 (0=Off, 15=Loudest)
-
-
-
-
 
 ; x Rep Pattern Shape
 ; 0   1 ----------------------------------------------------------------------
