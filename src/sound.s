@@ -264,12 +264,12 @@ update_sound
 ;
 @5              lda splash_frame
                 beq @7
-                dec splash_frame
                 cmp #$0F
                 bcc @6
 ; if splash_frame >= #$0F
                 sec
                 sbc player_wave
+                and #$1f
                 asl
                 tax
                 lda tone6_table+1,x

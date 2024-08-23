@@ -58,7 +58,10 @@ bucket_bot_line7   =   hiresLine180
 ;
 draw_buckets    ldy splash_bucket
                 ldx splash_frame
-                txa
+                beq @1
+                dex
+                stx splash_frame
+@1              txa
                 bne @2
                 ldy #1                  ; force middle bucket on splash_frame == 0
 @2              txa
