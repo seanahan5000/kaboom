@@ -47,11 +47,11 @@ Finally, the game was debugged using the RPW debugger.  This is a web-based Appl
 
 ## Paddles
 
-Custom paddles were created in order to enjoy Kaboom! in the way it was meant to be played.
+Custom paddles can be created in order to enjoy Kaboom! in the way it was meant to be played, but note that standard Apple paddles will also work just fine too.
 
 <img src="images/paddles.jpeg"/>
 
-Building Apple-compatible paddles is mostly an exercise left to the reader.  Below are links and descriptions to the 3D models I designed and the parts needed to build them.
+Building these Apple-compatible paddles is mostly an exercise left to the reader.  Below are links and descriptions to the 3D models I designed and the parts needed to build them.
 
 #### Materials
 
