@@ -7,7 +7,7 @@ fi
 
 cd "src"
 ca65 kaboom.s -l../obj/kaboom.lst -o../obj/kaboom.o
-ld65 --obj ../obj/kaboom.o -C apple2-asm.cfg -o../obj/kaboom.bin
+ld65 --obj ../obj/kaboom.o -C apple2-asm.cfg -o../obj/kaboom!
 cd ".."
 
 #---------------------------------------
@@ -28,7 +28,7 @@ if ! [[ -d "$PROJ" ]]; then
   mkdir $PROJ
 fi
 
-cp obj/kaboom.bin $PROJ
+cp obj/kaboom! $PROJ
 cp obj/kaboom.lst $PROJ
 cp kaboom.rpw-project $PROJ
 
