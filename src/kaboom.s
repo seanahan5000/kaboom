@@ -1,15 +1,8 @@
-;
-; Design notes:
-;   - Algorithms taken from disassembled VCS Kaboom!
-;   - Graphics taken from VCS and made to match as closely as possible
-;   - Goal is to run at a solid 60fps (1023000 / 60 ~= 17050 cycles per frame)
-;   - All drawing should be as fast a possible but limited to worst case
-;       - Want frame rate to be stable
-;       - Exceptions are calls to random, to keep patterns correct
-;
+
+; Copyright (C) 2024 Sean Callahan
 
 ; Timing:
-
+;
 ;   VBlank           4550 ( 70 * 65)
 ;
 ;   Active Top       2600 ( 40 * 65)
@@ -112,8 +105,8 @@ lmask           :=  $70
 rmask           :=  $71
 data_ptr        :=  $72
 data_ptr_h      :=  $73
-cur_digits      :=  $74                 ; $74,$75,$76,$77,$78,$79
-new_digits      :=  $7a                 ; $7a,$7b,$7c,$7d,$7e,$7f
+cur_digits      :=  $74                 ; $74-$79
+new_digits      :=  $7a                 ; $7a-$7f
 
                                         ; (start of init clear)
 game_select     :=  $80
@@ -133,12 +126,12 @@ player_num      :=  $a0                 ; current player (0 or 1)
 player_state    :=  $a1
 player_buckets  :=  $a1
 player_wave     :=  $a2
-player_score    :=  $a3                 ; $a3,$a4,$a5
+player_score    :=  $a3                 ; $a3-$a5
 
 other_state     :=  $a6
 other_buckets   :=  $a6
 other_wave      :=  $a7
-other_score     :=  $a8                 ; $a8,$a9,$aa
+other_score     :=  $a8                 ; $a8-$aa
 
 bombs_dropped   :=  $ab
 exp_bomb_index  :=  $ac
@@ -151,8 +144,11 @@ bomb_vphase     :=  $b1
 ;
 bomb_frames     :=  $b3                 ; $b3-$ba
 bomb_columns    :=  $bb                 ; $bb-$c2
+bomb_hit        :=  $c3
+bucket_hit      :=  $c4
                                         ; (end of reset clear)
                                         ; (end of init clear)
+last_var        :=  bucket_hit
 
 ; pointers to bomb blitting code
 table_buffer0_lo =  $1000
@@ -180,7 +176,6 @@ fullscreen      :=  $C052
 primary         :=  $C054
 hires           :=  $C057
 pbutton0        :=  $C061
-vblank          :=  $C02E
 
                 .include "hires.s"
 
@@ -190,7 +185,7 @@ kaboom          jsr init_machine
 
 ; clear all variables
                 lda #0
-                ldx #$42
+                ldx #last_var-game_select
 @1              sta game_select,x
                 dex
                 bpl @1
@@ -254,6 +249,8 @@ move_buckets    ldx player_num
 @common         sta buckets_x
 
                 inc vblank_count
+                lda #0
+                sta active_bombs
 
 ; check for reset and select
 check_keys      lda keyboard
@@ -409,7 +406,7 @@ move_bomber     ldx bomber_dir
                 eor #$ff
                 tax
 @1
-; move bomber by +/- game_wave+1
+; move bomber by +/- player_wave+1
 ;
 ; NOTE: Do all the work of computing new position and
 ;   then only commit to it at the end, all in order
@@ -450,17 +447,71 @@ move_bomber     ldx bomber_dir
                 sta bomber_x
 @still
 
-; check for bomb missed
+check_bomb_caught
+                ldx bomb_hit
+                beq check_bomb_missed
+
+                ldy bucket_hit
+                sty splash_bucket
+                lda #$10
+                sta splash_frame
+
+                lda #0
+                sta bomb_frames,x
+                sta bomb_hit
+                sta bucket_hit
+
+; bump score by player_wave + 1
+                sed
+                lda player_wave
+                sec                     ; +1
+                ldx #2
+                ldy player_score+1
+@1              adc player_score,x
+                sta player_score,x
+                lda #0
+                dex
+                bpl @1
+                cld
+                bcc @3
+; clear buckets and bombs and pin score to 999999
+                sta player_buckets
+                sta splash_frame
+                ldx #7
+@2              sta bomb_frames,x
+                dex
+                bpl @2
+                lda #$99
+                sta player_score+0
+                sta player_score+1
+                sta player_score+2
+                bne check_bomb_missed   ; always
+
+; check for score passing 1000
+@3              tya
+                eor player_score+1
+                and #$f0
+                beq check_bomb_missed
+; award extra bucket if possible
+                ldx player_buckets
+                inx
+                cpx #4
+                bcs @4
+                stx player_buckets
+@4              lda #$3f
+                sta bonus_sound
+
 check_bomb_missed
                 lda bomb_frames+7
-                beq @8
+                beq update_bombs
                 ldx bomb_vphase
                 cpx #12
-                bcc @8
+                bcc update_bombs
 ; align before explosions start and bomber stops moving
                 jsr align_bomber
+                lda #0
+                sta splash_frame
                 jmp explode_next
-@8
 
 update_bombs
 ; randomize bomb frame and count active bombs
@@ -553,8 +604,7 @@ start_wave      lsr
                 sta bomb_columns+0
 no_new_bomb
 
-finish_field    lda #0
-                sta active_bombs
+finish_field
 
 ; choose smile/frown for bomber
 update_mouth    lda player_score+0      ; frown if score >= 10000
@@ -608,7 +658,7 @@ align_bomber    lda bomber_x
 ;---------------------------------------
 
 clear_vars      lda #0
-                ldx #$1f
+                ldx #last_var-player_num
 @1              sta player_num,x
                 dex
                 bpl @1

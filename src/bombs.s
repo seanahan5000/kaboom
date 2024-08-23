@@ -33,9 +33,8 @@ draw_bombs      ldy player_wave
                 ldx #1
 @next_bomb      stx bomb_index
                 cpx #4
-                bcs @2
-                jmp @no_hit
-@2              bne @5
+                bcc @no_hit
+                bne @4
 
                 jsr erase_buckets
 
@@ -45,21 +44,39 @@ draw_bombs      ldy player_wave
                 asl
                 tax
                 clc
-                adc #34
+                adc #33
                 tay
                 lda div7,x
                 sta bucket_xcol
                 lda mod7,x
                 sta bucket_xshift
-                bcc @3
+                bcc @2
                 ldx div7_hi,y
                 lda mod7_hi,y
-                bcs @4                  ; always
-@3              ldx div7,y
+                bcs @3                  ; always
+@2              ldx div7,y
                 lda mod7,y
-@4              stx hit_xcol
+@3              stx hit_xcol
                 sta hit_xshift
-@5
+@4
+
+; hit test bucket left/right
+                ldx bomb_index
+                lda bomb_columns,x
+                lsr                     ; remove hflip bit
+                sta temp
+                tay
+                iny
+                cpy bucket_xcol
+                bcc @no_hit
+                lda hit_xcol
+                cmp temp
+                bne @5
+; allow a small amount of overlap
+                lda hit_xshift
+                cmp #3
+@5              bcc @no_hit
+
 ; hit test bomb against bucket top/bottom
                 lda #bombsTop-bombMaxDy
                 clc
@@ -76,75 +93,17 @@ draw_bombs      ldy player_wave
                 bcs @7
                 dey
                 bpl @6
-                bmi @no_hit
-@7              sty @mod+1
+                bmi @no_hit             ; always
 
-; hit test bucket left/right
-                ldx bomb_index
-                lda bomb_columns,x
-                lsr
-                sta temp
-                tay
-                iny
-                cpy bucket_xcol
-                bcc @no_hit
-                lda hit_xcol
-                cmp temp
-                bne @8
-; allow a small amount of overlap
-                lda hit_xshift
-                cmp #3
-@8              bcc @no_hit
-
+@7              ldx bomb_index
                 lda bomb_frames,x
                 beq @no_hit
+                cpy splash_bucket
+                beq @8
                 lda #0
-                sta bomb_frames,x
-
-@mod            lda #$ff
-                sta splash_bucket
-                lda #$10
                 sta splash_frame
-
-; bump score by game_wave + 1
-                sed
-                lda player_wave
-                sec                     ; +1
-                ldx #2
-                ldy player_score+1
-@9              adc player_score,x
-                sta player_score,x
-                lda #0
-                dex
-                bpl @9
-                cld
-                bcc @11
-; clear buckets and bombs and pin score to 999999
-                sta player_buckets
-                sta splash_frame
-                ldx #7
-@10             sta bomb_frames,x
-                dex
-                bpl @10
-                lda #$99
-                sta player_score+0
-                sta player_score+1
-                sta player_score+2
-                rts
-
-; check for score passing 1000
-@11             tya
-                eor player_score+1
-                and #$f0
-                beq @no_hit
-; award extra bucket if possible
-                ldx player_buckets
-                inx
-                cpx #4
-                bcs @12
-                stx player_buckets
-@12             lda #$3f
-                sta bonus_sound
+@8              sty bucket_hit
+                stx bomb_hit
 
 @no_hit         jsr draw_bomb
 
@@ -159,9 +118,9 @@ draw_bombs      ldy player_wave
                 ldx bomb_index
                 inx
                 cpx #8
-                beq @13
+                beq @9
                 jmp @next_bomb
-@13             rts
+@9              rts
 
 explode_bombs   lda exp_bomb_index
                 bne @1
@@ -220,43 +179,6 @@ explode_bombs   lda exp_bomb_index
                 cpx #8
                 bne @next_bomb
                 rts
-
-; NOTE: table_ptr1+0 and table_ptr2+0 are still #$00 from init_bombs
-draw_bomb       ldx bomb_index          ; 3
-                lda bomb_columns,x      ; 4
-                lsr                     ; 2
-                sta @mod1+1             ; 4
-                rol                     ; 2
-                and #$3                 ; 2
-                ora #>table_buffer0_lo  ; 2
-                sta table_ptr1+1        ; 3
-                ora #$04                ; 2
-                sta table_ptr2+1        ; 3
-                ldy start_line          ; 3
-                lda (table_ptr1),y      ; 5
-                sta @mod2+1             ; 4
-                lda (table_ptr2),y      ; 5
-                sta @mod2+2             ; 4
-                ldy end_line            ; 3
-                lda (table_ptr1),y      ; 5
-                sta bomb_ptr            ; 3
-                lda (table_ptr2),y      ; 5
-                sta bomb_ptr_h          ; 3
-                ldy bomb_frames,x       ; 4
-                lda bomb_offsets,y      ; 4
-                ldy bomb_dy             ; 3
-                clc                     ; 2
-                adc bomb_dy_offset,y    ; 4
-                tax                     ; 2
-                ldy #0                  ; 2
-                lda #$60                ; 2 rts
-                sta (bomb_ptr),y        ; 6
-@mod1           ldy #$ff                ; 2
-@mod2           jsr $ffff               ; 6 + 6 rts
-                ldy #0                  ; 2
-                lda #$bd                ; 2 lda $ffff,x
-                sta (bomb_ptr),y        ; 6
-                rts                     ; 6 = 126 + lines * 20
 ;
 ; On entry:
 ;   A: top line
@@ -315,6 +237,43 @@ draw_explode    sta linenum
                 same_page_as @2
 @3              rts
 
+; NOTE: table_ptr1+0 and table_ptr2+0 are still #$00 from init_bombs
+draw_bomb       ldx bomb_index          ; 3
+                lda bomb_columns,x      ; 4
+                lsr                     ; 2
+                sta @mod1+1             ; 4
+                rol                     ; 2
+                and #$3                 ; 2
+                ora #>table_buffer0_lo  ; 2
+                sta table_ptr1+1        ; 3
+                ora #$04                ; 2
+                sta table_ptr2+1        ; 3
+                ldy start_line          ; 3
+                lda (table_ptr1),y      ; 5
+                sta @mod2+1             ; 4
+                lda (table_ptr2),y      ; 5
+                sta @mod2+2             ; 4
+                ldy end_line            ; 3
+                lda (table_ptr1),y      ; 5
+                sta bomb_ptr            ; 3
+                lda (table_ptr2),y      ; 5
+                sta bomb_ptr_h          ; 3
+                ldy bomb_frames,x       ; 4
+                lda bomb_offsets,y      ; 4
+                ldy bomb_dy             ; 3
+                clc                     ; 2
+                adc bomb_dy_offset,y    ; 4
+                tax                     ; 2
+                ldy #0                  ; 2
+                lda #$60                ; 2 rts
+                sta (bomb_ptr),y        ; 6
+@mod1           ldy #$ff                ; 2
+@mod2           jsr $ffff               ; 6 + 6 rts
+                ldy #0                  ; 2
+                lda #$bd                ; 2 lda $ffff,x
+                sta (bomb_ptr),y        ; 6
+                rts                     ; 6 = 126 + lines * 20
+
 bucket_tops     .byte bucketTopY
                 .byte bucketMidY
                 .byte bucketBotY
@@ -322,20 +281,6 @@ bucket_tops     .byte bucketTopY
 bucket_bottoms  .byte bucketTopY+bucketHeight
                 .byte bucketMidY+bucketHeight
                 .byte bucketBotY+bucketHeight
-
-; 4550 cycles of vblank
-; 650 cycles during logo
-
-
-; splash0_line0   =   hiresLine133
-; bucket0_line0   =   hiresLine141
-
-; splash1_line0   =   hiresLine149
-; bucket1_line0   =   hiresLine157
-
-; splash2_line0   =   hiresLine165
-; bucket2_line0   =   hiresLine173
-
 
 wave_bomb_dy    .byte 1,1,2,2,3,3,4,4
 

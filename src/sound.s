@@ -169,8 +169,8 @@ mb_write        ldy mb_ptr
 
 ; Mockingboard baseline frequency works out to be approximately
 ;   2x the baseine frequency of the Atari 2600.  So, any frequency
-;   divider value from the Atari needs to be incremented by 1 to
-;   get the same pitch on the Mockingboard.
+;   divider value from the Atari needs to be doubled to get the
+;   same pitch on the Mockingboard.
 
 update_sound
 
@@ -264,7 +264,7 @@ update_sound
 ;
 @5              lda splash_frame
                 beq @7
-;               dec splash_frame        ; TODO: move out of buckets?
+                dec splash_frame
                 cmp #$0F
                 bcc @6
 ; if splash_frame >= #$0F
@@ -326,8 +326,8 @@ update_sound
 ; no sound active
 ;
 @8              ldx #REG_AY_ENABLE
-                lda #$3f                ; disable all channels
-                jmp mb_write
+                lda #$3f
+                jmp mb_write            ; disable all channels
 
 tone6_table     .word 6*1*2             ; *2 MB adjust
                 .word 6*2*2
@@ -372,57 +372,3 @@ noise_table     .byte 1,3,5,7,9
                 .byte 61,63
 
 ;-------------------------------------------------------------------------------
-
-;   15      AUDC0   ....1111  audio control 0
-;   16      AUDC1   ....1111  audio control 1
-;
-; Bit 0-3, Noise/Division Control (0-15, see below)
-;   0  set to 1                    8  9 bit poly (white noise)
-;   1  4 bit poly                  9  5 bit poly
-;   2  div 15 -> 4 bit poly        A  div 31 : pure tone
-;   3  5 bit poly -> 4 bit poly    B  set last 4 bits to 1
-;   4  div 2 : pure tone           C  div 6 : pure tone
-;   5  div 2 : pure tone           D  div 6 : pure tone
-;   6  div 31 : pure tone          E  div 93 : pure tone
-;   7  5 bit poly -> div 2         F  5 bit poly div 6
-
-;   17      AUDF0   ...11111  audio frequency 0
-;   18      AUDF1   ...11111  audio frequency 1
-;
-; Bit 0-4, Frequency Divider (0..31 = 30KHz/1..30KHz/32)
-;
-; The so-called "30KHz" is clocked twice per scanline,
-;   (ie. at CPUCLK/38 aka DOTCLK/114), so the exact rate is:
-;   PAL:  31113.1 Hz (3.546894MHz/114)
-;   NTSC: 31399.5 Hz (3.579545MHz/114)
-; After applying the Frequency Divider, the resulting frequency is
-;   subsequently divided by AUDC0/AUDC1, which provides additional
-;   division by 2, 6, 31, or 93 for pure tone; so the tone frequency
-;   range is circa 10Hz..15kHz (ie. 30KHz/32/93..30KHz/1/2).
-
-;   19      AUDV0   ....1111  audio volume 0
-;   1A      AUDV1   ....1111  audio volume 1
-;
-; Bit 0-3, Volume 0-15 (0=Off, 15=Loudest)
-
-; x Rep Pattern Shape
-; 0   1 ----------------------------------------------------------------------
-; 1  15 ----___-__--_-_----___-__--_-_----___-__--_-_----___-__--_-_----___-__
-; 2 465 --------------------------------------------------------------________
-; 3 465 ------______-___---__-----___-------___----___--__--_____---------___-
-; 4   2 -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-; 5   2 -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-; 6  31 ------------------_____________------------------_____________--------
-; 7  31 -----___--_---_-_-____-__-_--__-----___--_---_-_-____-__-_--__-----___
-
-; 8 511 ---------_____----_-----___-_---__--__-_____-__-_-__---_--_-___----__-
-
-; 9  31 -----___--_---_-_-____-__-_--__-----___--_---_-_-____-__-_--__-----___
-; A  31 ------------------_____________------------------_____________--------
-; B   1 ----------------------------------------------------------------------
-
-; C   6 ---___---___---___---___---___---___---___---___---___---___---___---_
-
-; D   6 ---___---___---___---___---___---___---___---___---___---___---___---_
-; E  93 -------------------------------------------------_____________________
-; F  93 ----------_____---_______----__________------___------____---------___
