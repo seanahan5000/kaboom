@@ -21,7 +21,7 @@
 
 Running on actual hardware with good paddles with a Mockingboard sound card is highly recommended.  It's the only real way to achieve Kaboom! game play "flow" as experienced on an Atari 2600.
 
-If an Apple II emulator is used, it must emulate the floating bus ("vapor lock") of real hardware. AppleWin and Virtual II support it but, as of this writing, MicroM8 does not and will hang after launch.
+If an Apple II emulator is used, it must emulate the floating bus ("vapor lock") of real hardware. AppleWin and Virtual II emulate it by default.  MicroM8 requires enabling Video -> Cycle Accurate Render, else it will hang after launch.
 
 ## Design
 
@@ -47,7 +47,7 @@ Finally, the game was debugged using the RPW debugger.  This is a web-based Appl
 
 ## Paddles
 
-Custom paddles can be created in order to enjoy Kaboom! in the way it was meant to be played, but note that standard Apple paddles will also work just fine too.
+Custom paddles can be created in order to enjoy Kaboom! in the way it was meant to be played, but note that standard Apple paddles will work just fine too.
 
 <img src="images/paddles.jpeg"/>
 
@@ -59,7 +59,7 @@ Building these Apple-compatible paddles is mostly an exercise left to the reader
 
     https://www.thingiverse.com/thing:6725944
 
-* 150K potentiometer
+* 150KΩ potentiometer
 
     https://www.mouser.com/ProductDetail/858-P2301FD20BR150K
 
@@ -85,7 +85,7 @@ Building these Apple-compatible paddles is mostly an exercise left to the reader
     Search amazon.com for
     "DB9 Solderless Connector 4Male, DB9 Breakout Connector RS232 D-SUB Serial to 9pin Port Terminal with Case"
 
-* 580 Ω resistor (up to 1KΩ okay)
+* 580Ω resistor (up to 1KΩ okay)
 
 <img src="images/inside.jpeg"/>
 
@@ -109,6 +109,6 @@ Wire -> DB9 Pin
  R1  ->  2
  W1  ->  1
 
-580 Ω resistor from Pin 1 -> 3
-580 Ω resistor from Pin 7 -> 3
+580Ω resistor from Pin 1 -> 3
+580Ω resistor from Pin 7 -> 3
 ```
