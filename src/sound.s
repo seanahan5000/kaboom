@@ -93,12 +93,13 @@ init_sound      bit machine_type
                 dec mb_ptr              ; not found
                 rts
 
-mb_init         lda #$ff                ; all output
-                ldy #MB_6522_DDRB1
+mb_init         ldy #MB_6522_DDRB1
                 jsr @init
                 ldy #MB_6522_DDRB2
-@init           sta (mb_ptr),y
+@init           lda #$07
+                sta (mb_ptr),y
                 iny
+                lda #$ff
                 sta (mb_ptr),y
 ;               rts
 
@@ -168,7 +169,7 @@ mb_write        ldy mb_ptr
 ; atfreq = 32400    ; NTSC: 31399.5 Hz (3.579545MHz/114)
 
 ; Mockingboard baseline frequency works out to be approximately
-;   2x the baseine frequency of the Atari 2600.  So, any frequency
+;   2x the baseline frequency of the Atari 2600.  So, any frequency
 ;   divider value from the Atari needs to be doubled to get the
 ;   same pitch on the Mockingboard.
 

@@ -7,7 +7,7 @@ fi
 
 cd "src"
 ca65 kaboom.s -l../obj/kaboom.lst -o../obj/kaboom.o
-ld65 --obj ../obj/kaboom.o -C apple2-asm.cfg -o../obj/kaboom!
+ld65 --obj ../obj/kaboom.o -C ../apple2-asm.cfg -o../obj/kaboom!
 cd ".."
 
 #---------------------------------------
